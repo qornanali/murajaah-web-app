@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/authStore";
@@ -9,6 +10,7 @@ import { useLocaleStore } from "@/store/localeStore";
 import { useThemeStore } from "@/store/themeStore";
 
 export default function LoginPage() {
+  const router = useRouter();
   const locale = useLocaleStore((state) => state.locale);
   const initializeLocale = useLocaleStore((state) => state.initializeLocale);
   const setLocale = useLocaleStore((state) => state.setLocale);
@@ -20,6 +22,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
 
+  const user = useAuthStore((state) => state.user);
+  const initializeAuth = useAuthStore((state) => state.initializeAuth);
   const signIn = useAuthStore((state) => state.signIn);
   const signUp = useAuthStore((state) => state.signUp);
   const isLoading = useAuthStore((state) => state.isLoading);
@@ -32,6 +36,16 @@ export default function LoginPage() {
   useEffect(() => {
     initializeTheme();
   }, [initializeTheme]);
+
+  useEffect(() => {
+    void initializeAuth();
+  }, [initializeAuth]);
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      router.push("/");
+    }
+  }, [isLoading, user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,15 +73,18 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-sm rounded-[28px] border border-emerald-900/15 bg-[#FDFCF0]/90 p-8 shadow-[0_20px_60px_-32px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/65">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-3 flex justify-center">
+          <div className="mx-auto mb-3 flex items-center justify-center gap-3">
             <Image
-              src="/logo.svg"
+              src="/icon.svg"
               alt="Murajaah"
-              width={240}
-              height={68}
+              width={44}
+              height={44}
               priority
-              className="h-auto w-[220px] sm:w-[240px]"
+              className="h-11 w-11 rounded-xl"
             />
+            <h1 className="text-2xl font-semibold text-emerald-950 dark:text-emerald-100">
+              Murajaah
+            </h1>
           </div>
           <p className="mt-1 text-sm text-emerald-900/70 dark:text-emerald-200/80">
             {isSignUp

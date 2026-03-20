@@ -10,6 +10,29 @@ import {
 } from "@/lib/supabase/auth";
 import { toUserError } from "@/lib/errorHandling";
 
+const AUTH_TIMEOUT_MS = 12000;
+
+async function withTimeout<T>(
+  operation: Promise<T>,
+  timeoutMs = AUTH_TIMEOUT_MS,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error("Authentication request timed out"));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([operation, timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 interface AuthState {
   user: User | null;
   isLoading: boolean;
@@ -32,7 +55,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const user = await getSession();
+      const user = await withTimeout(getSession());
       set({ user, isLoading: false });
 
       const unsubscribe = onAuthStateChanged((updatedUser) => {
@@ -50,7 +73,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const { user, error } = await signUp(email, password);
+      const { user, error } = await withTimeout(signUp(email, password));
 
       if (error) {
         const message = toUserError("AUTH-SIGNUP-001", error);
@@ -71,7 +94,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const { user, error } = await signIn(email, password);
+      const { user, error } = await withTimeout(signIn(email, password));
 
       if (error) {
         const message = toUserError("AUTH-SIGNIN-001", error);
@@ -92,7 +115,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const { error } = await signOut();
+      const { error } = await withTimeout(signOut());
 
       if (error) {
         const message = toUserError("AUTH-SIGNOUT-001", error);
