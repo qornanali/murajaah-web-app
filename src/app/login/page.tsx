@@ -70,8 +70,9 @@ function LoginPageContent() {
     if (isSignUp) {
       const success = await signUp(email, password);
       if (success) {
-        setEmail("");
+        setIsSignUp(false);
         setPassword("");
+        router.replace("/login?auth=1");
       }
     } else {
       const success = await signIn(email, password);

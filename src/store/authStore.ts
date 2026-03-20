@@ -94,7 +94,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const { user, error } = await withTimeout(signUp(email, password));
+      const { user: signedUpUser, error } = await withTimeout(
+        signUp(email, password),
+      );
 
       if (error) {
         const message = toUserError("AUTH-SIGNUP-001", error);
@@ -102,7 +104,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return false;
       }
 
-      set({ user, isLoading: false });
+      if (signedUpUser) {
+        const signOutResult = await withTimeout(signOut());
+
+        if (signOutResult.error) {
+          const message = toUserError("AUTH-SIGNOUT-001", signOutResult.error);
+          set({ error: message, isLoading: false });
+          return false;
+        }
+      }
+
+      set({ user: null, isLoading: false });
       return true;
     } catch (error) {
       const message = toUserError("AUTH-SIGNUP-002", error);

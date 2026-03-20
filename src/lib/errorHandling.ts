@@ -11,10 +11,40 @@ function resolveErrorMessage(code: string, fallbackMessage?: string): string {
     errorMessages[DEFAULT_LOCALE];
 
   if (code in localizedMap) {
-    return localizedMap[code as keyof typeof localizedMap];
+    const localized = localizedMap[code as keyof typeof localizedMap];
+
+    if (fallbackMessage && code.startsWith("AUTH-")) {
+      return `${localized} ${fallbackMessage}`;
+    }
+
+    return localized;
   }
 
   return fallbackMessage ?? DEFAULT_ERROR_MESSAGE;
+}
+
+function extractErrorMessage(error?: unknown): string | undefined {
+  if (!error) {
+    return undefined;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    return (error as { message: string }).message;
+  }
+
+  return undefined;
 }
 
 export function toUserError(
@@ -23,5 +53,7 @@ export function toUserError(
   fallbackMessage?: string,
 ): string {
   console.error(`[${code}]`, error);
-  return `${resolveErrorMessage(code, fallbackMessage)} (Ref: ${code})`;
+  const extracted = extractErrorMessage(error);
+  const resolvedFallback = fallbackMessage ?? extracted;
+  return `${resolveErrorMessage(code, resolvedFallback)} (Ref: ${code})`;
 }
