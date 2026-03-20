@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { t } from "@/lib/i18n";
 import { useAuthStore } from "@/store/authStore";
@@ -11,6 +11,7 @@ import { useThemeStore } from "@/store/themeStore";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const locale = useLocaleStore((state) => state.locale);
   const initializeLocale = useLocaleStore((state) => state.initializeLocale);
   const setLocale = useLocaleStore((state) => state.setLocale);
@@ -29,6 +30,8 @@ export default function LoginPage() {
   const isLoading = useAuthStore((state) => state.isLoading);
   const error = useAuthStore((state) => state.error);
 
+  const allowAuthScreen = searchParams.get("auth") === "1";
+
   useEffect(() => {
     initializeLocale();
   }, [initializeLocale]);
@@ -46,6 +49,16 @@ export default function LoginPage() {
       router.push("/");
     }
   }, [isLoading, user, router]);
+
+  useEffect(() => {
+    if (!allowAuthScreen) {
+      router.replace("/");
+    }
+  }, [allowAuthScreen, router]);
+
+  if (!allowAuthScreen) {
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -177,7 +177,7 @@ export default function Home() {
       try {
         const publishedPackages = await fetchPublishedMemorizationPackages();
         setPackages(publishedPackages);
-      } catch (loadError) {
+      } catch {
         setPackages(PACKAGE_CATALOG);
       }
     };
@@ -349,7 +349,7 @@ export default function Home() {
 
   const handleSignOut = async () => {
     await signOut();
-    router.push("/login");
+    router.push("/");
   };
 
   useEffect(() => {
@@ -565,7 +565,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => {
-                  router.push("/login");
+                  router.push("/login?auth=1");
                 }}
                 className="rounded-lg bg-emerald-900/20 px-3 py-1.5 text-sm font-medium text-emerald-900 transition-colors hover:bg-emerald-900/30 dark:bg-emerald-100/20 dark:text-emerald-100 dark:hover:bg-emerald-100/30"
               >
