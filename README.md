@@ -11,14 +11,26 @@ Offline-first Quran memorization app using SM-2 spaced repetition.
 - Tailwind CSS for styling
 - Quran.com API v4 for Uthmani text and audio
 
-## Features Implemented (MVP)
+## Features
 
-- SM-2 rating flow (`Again`, `Hard`, `Good`, `Easy`)
-- Hidden/reveal ayah card with progressive reveal by Waqf marks
+- SM-2 rating flow (`Again`, `Hard`, `Good`, `Easy`) with per-button preview info:
+  - next review timing
+  - effect on repetition count and ease factor
+- Ayah practice card:
+  - optional hint toggle (ratings are always available)
+  - progressive reveal by Waqf marks
+  - surah name display (for context, e.g. `112:1` → `Al-Ikhlas`)
+- Auto-advance to next ayah after rating (with surah rollover)
+- Due review queue based on `nextReviewDate`
+- Learning packages with per-user status (`Start/Resume`, `Pause`, `Complete`)
+- Collapsible learning package panel (hidden by default)
 - Offline-first review writes to Dexie with background sync to Supabase
 - Supabase authentication (sign up / sign in / sign out)
 - Quran.com ayah fetch (Uthmani text + audio)
-- Due review queue based on `nextReviewDate`
+- EN/ID localization
+- Light/dark mode
+- Branded SVG logo + icon
+- Methodology section with Anki inspiration reference
 
 ## 1) Prerequisites
 
@@ -82,6 +94,33 @@ npm start
 npm run lint
 ```
 
+## Memorization Methodology
+
+Murajaah flow in this app:
+
+1. Recall first without looking.
+2. Use hint only when needed.
+3. Rate honestly (`Again`, `Hard`, `Good`, `Easy`).
+4. Let spaced repetition schedule the next review automatically.
+
+Inspired by Anki's spaced-repetition workflow:
+
+- https://apps.ankiweb.net/
+
+## Data Source and Disclaimer
+
+- Main Quran text/audio source: https://quran.com
+- Always verify recitation and text with your mushaf.
+
+## Deployment Recommendation
+
+Recommended host: **Vercel** (best fit for Next.js App Router), paired with Supabase.
+
+Alternative hosts:
+
+- Cloudflare Pages
+- Netlify
+
 ## Project Structure
 
 - `src/app` — App Router pages (`/`, `/login`)
@@ -89,6 +128,7 @@ npm run lint
 - `src/lib/srs.ts` — SM-2 logic
 - `src/lib/quranUtils.ts` — Waqf chunking utility
 - `src/lib/quranApi.ts` — Quran.com API client
+- `src/lib/quranMeta.ts` — Surah metadata (names)
 - `src/lib/offline` — Dexie DB + background sync
 - `src/lib/supabase` — Supabase client/auth helpers
 - `src/store` — Zustand stores
