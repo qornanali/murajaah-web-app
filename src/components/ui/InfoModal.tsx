@@ -152,6 +152,25 @@ export default function InfoModal({
                 >
                   LinkedIn
                 </a>
+                <br />
+                Muhammad Jafar ·{" "}
+                <a
+                  href="https://github.com/mhmmdjafarg"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 dark:hover:text-emerald-100"
+                >
+                  GitHub
+                </a>{" "}
+                ·{" "}
+                <a
+                  href="https://www.linkedin.com/in/mhmmdjafarg/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 dark:hover:text-emerald-100"
+                >
+                  LinkedIn
+                </a>
               </p>
             </div>
           ) : null}
