@@ -90,6 +90,7 @@ export default function Home() {
   const [packageSearch, setPackageSearch] = useState("");
   const [packagePage, setPackagePage] = useState(1);
 
+  const authenticatedUserId = user?.id;
   const activeUserId = user?.id ?? guestUserId;
   const isGuestMode = !user && Boolean(guestUserId);
 
@@ -187,11 +188,11 @@ export default function Home() {
 
   useEffect(() => {
     const loadEnrollments = async () => {
-      if (!user?.id && !guestUserId) {
+      if (!authenticatedUserId && !guestUserId) {
         return;
       }
 
-      if (!user?.id && guestUserId) {
+      if (!authenticatedUserId && guestUserId) {
         const storageKey = `${GUEST_PACKAGE_STATUS_PREFIX}.${guestUserId}`;
         const raw = window.localStorage.getItem(storageKey);
 
@@ -213,8 +214,13 @@ export default function Home() {
         return;
       }
 
+      if (!authenticatedUserId) {
+        return;
+      }
+
       try {
-        const enrollmentMap = await fetchUserPackageEnrollments(user!.id);
+        const enrollmentMap =
+          await fetchUserPackageEnrollments(authenticatedUserId);
         setPackageStatusById(enrollmentMap);
       } catch (loadError) {
         const message = toUserError("PKG-ENROLL-001", loadError);
@@ -223,7 +229,7 @@ export default function Home() {
     };
 
     void loadEnrollments();
-  }, [user?.id, guestUserId]);
+  }, [authenticatedUserId, guestUserId]);
 
   useEffect(() => {
     if (!isGuestMode || !guestUserId) {
@@ -295,11 +301,6 @@ export default function Home() {
   const handleOpenSurah = () => {
     setSelectedPackageId(null);
     void loadAyahFromApi(toVerseKey(selectedSurahNumber, 1));
-  };
-
-  const openInfoModal = (tab: InfoTab) => {
-    setActiveInfoTab(tab);
-    setIsInfoModalOpen(true);
   };
 
   const openSourceSheet = (tab: "surah" | "packages") => {

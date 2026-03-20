@@ -73,26 +73,29 @@ export default function AyahCard({ ayah, onRate, reviewState }: AyahCardProps) {
     setVisibleChunkCount(1);
   }, [ayah.surahNumber, ayah.ayahNumber]);
 
-  const previewCopy =
-    locale === "id"
-      ? {
-          next: "Berikutnya",
-          effect: "Efek",
-          tomorrow: "besok",
-          inDays: (days: number) => `${days} hari lagi`,
-          repsReset: "pengulangan direset",
-          repsTo: (repetitions: number) => `pengulangan ${repetitions}`,
-          efTo: (easeFactor: number) => `EF ${easeFactor.toFixed(2)}`,
-        }
-      : {
-          next: "Next",
-          effect: "Effect",
-          tomorrow: "tomorrow",
-          inDays: (days: number) => `in ${days} days`,
-          repsReset: "reps reset",
-          repsTo: (repetitions: number) => `reps ${repetitions}`,
-          efTo: (easeFactor: number) => `EF ${easeFactor.toFixed(2)}`,
-        };
+  const previewCopy = useMemo(
+    () =>
+      locale === "id"
+        ? {
+            next: "Berikutnya",
+            effect: "Efek",
+            tomorrow: "besok",
+            inDays: (days: number) => `${days} hari lagi`,
+            repsReset: "pengulangan direset",
+            repsTo: (repetitions: number) => `pengulangan ${repetitions}`,
+            efTo: (easeFactor: number) => `EF ${easeFactor.toFixed(2)}`,
+          }
+        : {
+            next: "Next",
+            effect: "Effect",
+            tomorrow: "tomorrow",
+            inDays: (days: number) => `in ${days} days`,
+            repsReset: "reps reset",
+            repsTo: (repetitions: number) => `reps ${repetitions}`,
+            efTo: (easeFactor: number) => `EF ${easeFactor.toFixed(2)}`,
+          },
+    [locale],
+  );
 
   const ratingPreviews = useMemo(() => {
     return ratingButtons.map((button) => {
