@@ -67,7 +67,10 @@
     "page.methodologyStep2": "2. Rate your recall honestly with Again, Hard, Good, or Easy.",
     "page.methodologyStep3": "3. Review repeatedly over time using spaced repetition so weaker ayat return sooner.",
     "page.ankiInspired": "Inspired by Anki's spaced-repetition workflow, adapted for Quran memorization and murajaah.",
-    "page.ankiLink": "Anki official website"
+    "page.ankiLink": "Anki official website",
+    "page.feedback": "Feedback",
+    "page.feedbackDescription": "Help improve Murajaah by sharing bugs, ideas, or suggestions.",
+    "page.feedbackCta": "Open feedback form"
   },
   "id": {
     "common.loading": "Memuat...",
@@ -137,6 +140,9 @@
     "page.methodologyStep2": "2. Nilai hafalan secara jujur dengan Ulang, Sulit, Baik, atau Mudah.",
     "page.methodologyStep3": "3. Ulangi murajaah dari waktu ke waktu dengan spaced repetition agar ayat yang lemah muncul lebih cepat.",
     "page.ankiInspired": "Terinspirasi dari alur spaced repetition Anki, lalu disesuaikan untuk hafalan Quran dan murajaah.",
-    "page.ankiLink": "Situs resmi Anki"
+    "page.ankiLink": "Situs resmi Anki",
+    "page.feedback": "Masukan",
+    "page.feedbackDescription": "Bantu tingkatkan Murajaah dengan melaporkan bug, ide, atau saran.",
+    "page.feedbackCta": "Buka formulir masukan"
   }
 }

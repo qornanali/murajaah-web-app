@@ -655,6 +655,21 @@ export default function Home() {
             </a>
           </div>
         </div>
+
+        <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-5 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+          <p className="font-semibold">{t("page.feedback", locale)}</p>
+          <p className="mt-2 text-emerald-900/80 dark:text-emerald-200/80">
+            {t("page.feedbackDescription", locale)}
+          </p>
+          <a
+            href="https://forms.gle/zwdDtmFTQs2pARxK8"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 inline-flex rounded-lg bg-emerald-900 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-800"
+          >
+            {t("page.feedbackCta", locale)}
+          </a>
+        </div>
       </div>
     </main>
   );
