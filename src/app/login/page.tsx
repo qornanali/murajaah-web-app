@@ -123,24 +123,58 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setTheme("light")}
-              className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+              aria-label={t("common.light", locale)}
+              title={t("common.light", locale)}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
                 theme === "light"
-                  ? "bg-emerald-900 text-white"
-                  : "bg-emerald-900/10 text-emerald-900 hover:bg-emerald-900/20 dark:bg-emerald-100/10 dark:text-emerald-100 dark:hover:bg-emerald-100/20"
+                  ? "border-emerald-900 bg-emerald-900 text-white dark:border-emerald-100"
+                  : "border-emerald-900/15 bg-emerald-900/5 text-emerald-900 hover:bg-emerald-900/10 dark:border-emerald-100/15 dark:bg-emerald-100/5 dark:text-emerald-100 dark:hover:bg-emerald-100/10"
               }`}
             >
-              {t("common.light", locale)}
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2" />
+                <path d="M12 20v2" />
+                <path d="m4.93 4.93 1.41 1.41" />
+                <path d="m17.66 17.66 1.41 1.41" />
+                <path d="M2 12h2" />
+                <path d="M20 12h2" />
+                <path d="m4.93 19.07 1.41-1.41" />
+                <path d="m17.66 6.34 1.41-1.41" />
+              </svg>
             </button>
             <button
               type="button"
               onClick={() => setTheme("dark")}
-              className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+              aria-label={t("common.dark", locale)}
+              title={t("common.dark", locale)}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
                 theme === "dark"
-                  ? "bg-emerald-900 text-white"
-                  : "bg-emerald-900/10 text-emerald-900 hover:bg-emerald-900/20 dark:bg-emerald-100/10 dark:text-emerald-100 dark:hover:bg-emerald-100/20"
+                  ? "border-emerald-900 bg-emerald-900 text-white dark:border-emerald-100"
+                  : "border-emerald-900/15 bg-emerald-900/5 text-emerald-900 hover:bg-emerald-900/10 dark:border-emerald-100/15 dark:bg-emerald-100/5 dark:text-emerald-100 dark:hover:bg-emerald-100/10"
               }`}
             >
-              {t("common.dark", locale)}
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
+              </svg>
             </button>
           </div>
         </div>
@@ -209,7 +243,7 @@ export default function LoginPage() {
             }}
             className="w-full rounded-lg border border-emerald-900/25 bg-emerald-900/5 px-4 py-2.5 text-sm font-semibold text-emerald-900 transition-colors hover:bg-emerald-900/10 dark:border-emerald-200/25 dark:bg-emerald-100/5 dark:text-emerald-100 dark:hover:bg-emerald-100/10"
           >
-            Continue as Guest
+            {t("auth.continueAsGuest", locale)}
           </button>
         </div>
 
