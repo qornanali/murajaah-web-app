@@ -1,4 +1,5 @@
 import { murajaahDB, type AyahProgressRow } from "./db";
+import { isGuestUserId } from "@/lib/guest";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 let activeSync: Promise<void> | null = null;
@@ -7,6 +8,10 @@ const UUID_V4_OR_V1_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function validateAyahProgressRecord(record: AyahProgressRow) {
+  if (isGuestUserId(record.userId)) {
+    throw new Error("Guest progress is local-only and cannot be synced");
+  }
+
   if (
     !UUID_V4_OR_V1_REGEX.test(record.id) ||
     !UUID_V4_OR_V1_REGEX.test(record.userId)
@@ -91,6 +96,10 @@ async function pushAyahProgress(record: AyahProgressRow) {
 }
 
 export async function enqueueAyahProgressSync(record: AyahProgressRow) {
+  if (isGuestUserId(record.userId)) {
+    return;
+  }
+
   const now = new Date().toISOString();
 
   await murajaahDB.syncQueue.add({

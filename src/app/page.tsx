@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import AyahCard, { type AyahCardData } from "@/components/quran/AyahCard";
 import { toUserError } from "@/lib/errorHandling";
+import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
 import {
   fetchPublishedMemorizationPackages,
@@ -63,6 +64,10 @@ export default function Home() {
   >({});
   const [packageActionId, setPackageActionId] = useState<string | null>(null);
   const [isPackagesCollapsed, setIsPackagesCollapsed] = useState(true);
+  const [guestUserId, setGuestUserId] = useState<string | null>(null);
+
+  const activeUserId = user?.id ?? guestUserId;
+  const isGuestMode = !user && Boolean(guestUserId);
 
   const loadAyahFromApi = async (verseKey: string) => {
     setAyahLoading(true);
@@ -83,6 +88,10 @@ export default function Home() {
   useEffect(() => {
     void initializeAuth();
   }, [initializeAuth]);
+
+  useEffect(() => {
+    setGuestUserId(getGuestUserId());
+  }, []);
 
   useEffect(() => {
     initializeLocale();
@@ -139,40 +148,39 @@ export default function Home() {
   }, [user?.id]);
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push("/login");
-      return;
-    }
-
-    if (user && user.id && ayah) {
-      void loadAyahProgress(user.id, ayah.surahNumber, ayah.ayahNumber);
-      void loadDueQueue(user.id);
+    if (activeUserId && ayah) {
+      void loadAyahProgress(activeUserId, ayah.surahNumber, ayah.ayahNumber);
+      void loadDueQueue(activeUserId);
 
       const stopSync = startBackgroundSync();
       return () => {
         stopSync();
       };
     }
-  }, [user, isLoading, ayah, loadAyahProgress, loadDueQueue, router]);
+  }, [activeUserId, ayah, loadAyahProgress, loadDueQueue]);
 
   const handleRate = async (rating: SM2Rating) => {
-    if (!user?.id || !ayah) return;
+    if (!activeUserId || !ayah) return;
 
     await rateAyah({
-      userId: user.id,
+      userId: activeUserId,
       surahNumber: ayah.surahNumber,
       ayahNumber: ayah.ayahNumber,
       rating,
     });
 
-    void loadDueQueue(user.id);
+    void loadDueQueue(activeUserId);
 
     try {
       const nextAyah = await fetchNextAyah(ayah.surahNumber, ayah.ayahNumber);
       setAyah(nextAyah);
       setSelectedVerseKey(nextAyah.verseKey);
       setAyahError(null);
-      void loadAyahProgress(user.id, nextAyah.surahNumber, nextAyah.ayahNumber);
+      void loadAyahProgress(
+        activeUserId,
+        nextAyah.surahNumber,
+        nextAyah.ayahNumber,
+      );
     } catch (loadError) {
       const message = toUserError("QURAN-AYAH-001", loadError);
       setAyahError(message);
@@ -199,6 +207,7 @@ export default function Home() {
     status: PackageEnrollmentStatus,
   ) => {
     if (!user?.id) {
+      router.push("/login");
       return;
     }
 
@@ -260,8 +269,14 @@ export default function Home() {
     );
   }
 
-  if (!user) {
-    return null;
+  if (!activeUserId) {
+    return (
+      <main className="flex min-h-screen items-center justify-center">
+        <div className="text-center text-emerald-950">
+          <p>{t("common.loading", locale)}</p>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -282,10 +297,21 @@ export default function Home() {
                 Murajaah
               </p>
               <p>
-                {t("auth.loggedInAs", locale)}:{" "}
-                <span className="font-medium text-emerald-950 dark:text-emerald-100">
-                  {maskEmail(user.email)}
-                </span>
+                {isGuestMode ? (
+                  <>
+                    Guest mode{" "}
+                    <span className="font-medium text-emerald-950 dark:text-emerald-100">
+                      (local only)
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    {t("auth.loggedInAs", locale)}:{" "}
+                    <span className="font-medium text-emerald-950 dark:text-emerald-100">
+                      {maskEmail(user?.email)}
+                    </span>
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -340,15 +366,27 @@ export default function Home() {
             >
               {t("common.dark", locale)}
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                void handleSignOut();
-              }}
-              className="rounded-lg bg-emerald-900/20 px-3 py-1.5 text-sm font-medium text-emerald-900 hover:bg-emerald-900/30 transition-colors dark:bg-emerald-100/20 dark:text-emerald-100 dark:hover:bg-emerald-100/30"
-            >
-              {t("auth.signOut", locale)}
-            </button>
+            {isGuestMode ? (
+              <button
+                type="button"
+                onClick={() => {
+                  router.push("/login");
+                }}
+                className="rounded-lg bg-emerald-900/20 px-3 py-1.5 text-sm font-medium text-emerald-900 hover:bg-emerald-900/30 transition-colors dark:bg-emerald-100/20 dark:text-emerald-100 dark:hover:bg-emerald-100/30"
+              >
+                {t("auth.signIn", locale)}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  void handleSignOut();
+                }}
+                className="rounded-lg bg-emerald-900/20 px-3 py-1.5 text-sm font-medium text-emerald-900 hover:bg-emerald-900/30 transition-colors dark:bg-emerald-100/20 dark:text-emerald-100 dark:hover:bg-emerald-100/30"
+              >
+                {t("auth.signOut", locale)}
+              </button>
+            )}
           </div>
         </div>
       </div>

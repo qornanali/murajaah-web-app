@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import { murajaahDB, type AyahProgressRow } from "@/lib/offline/db";
 import { toUserError } from "@/lib/errorHandling";
+import { isGuestUserId, isSupportedUserId } from "@/lib/guest";
 import { enqueueAyahProgressSync, processSyncQueue } from "@/lib/offline/sync";
 import { calculateSM2, type SM2Rating } from "@/lib/srs";
 
@@ -27,11 +28,8 @@ interface ReviewState {
   ) => Promise<AyahProgressRow | null>;
 }
 
-const UUID_V4_OR_V1_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 function validateRateInput(input: RateAyahInput) {
-  if (!UUID_V4_OR_V1_REGEX.test(input.userId)) {
+  if (!isSupportedUserId(input.userId)) {
     throw new Error("Invalid user identifier format");
   }
 
@@ -142,10 +140,12 @@ export const useReviewStore = create<ReviewState>((set) => ({
       };
 
       await murajaahDB.ayahProgress.put(row);
-      await enqueueAyahProgressSync(row);
+      if (!isGuestUserId(userId)) {
+        await enqueueAyahProgressSync(row);
 
-      if (typeof navigator !== "undefined" && navigator.onLine) {
-        await processSyncQueue();
+        if (typeof navigator !== "undefined" && navigator.onLine) {
+          await processSyncQueue();
+        }
       }
 
       set((state) => ({

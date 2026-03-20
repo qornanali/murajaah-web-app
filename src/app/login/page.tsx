@@ -201,6 +201,18 @@ export default function LoginPage() {
           </button>
         </form>
 
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => {
+              router.push("/");
+            }}
+            className="w-full rounded-lg border border-emerald-900/25 bg-emerald-900/5 px-4 py-2.5 text-sm font-semibold text-emerald-900 transition-colors hover:bg-emerald-900/10 dark:border-emerald-200/25 dark:bg-emerald-100/5 dark:text-emerald-100 dark:hover:bg-emerald-100/10"
+          >
+            Continue as Guest
+          </button>
+        </div>
+
         <div className="mt-6 border-t border-emerald-900/10 pt-6 text-center dark:border-emerald-200/10">
           <p className="text-sm text-emerald-900/70 dark:text-emerald-200/80">
             {isSignUp
