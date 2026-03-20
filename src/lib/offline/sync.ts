@@ -1,0 +1,189 @@
+import { murajaahDB, type AyahProgressRow } from "./db";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+
+let activeSync: Promise<void> | null = null;
+
+const UUID_V4_OR_V1_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function validateAyahProgressRecord(record: AyahProgressRow) {
+  if (
+    !UUID_V4_OR_V1_REGEX.test(record.id) ||
+    !UUID_V4_OR_V1_REGEX.test(record.userId)
+  ) {
+    throw new Error("Invalid ayah progress identifier");
+  }
+
+  if (
+    !Number.isInteger(record.surahNumber) ||
+    record.surahNumber < 1 ||
+    record.surahNumber > 114
+  ) {
+    throw new Error("Invalid surah number in sync payload");
+  }
+
+  if (
+    !Number.isInteger(record.ayahNumber) ||
+    record.ayahNumber < 1 ||
+    record.ayahNumber > 300
+  ) {
+    throw new Error("Invalid ayah number in sync payload");
+  }
+
+  if (
+    !Number.isFinite(record.easeFactor) ||
+    record.easeFactor < 1.3 ||
+    record.easeFactor > 3.5
+  ) {
+    throw new Error("Invalid ease factor in sync payload");
+  }
+
+  if (
+    !Number.isInteger(record.interval) ||
+    record.interval < 0 ||
+    record.interval > 36500
+  ) {
+    throw new Error("Invalid interval in sync payload");
+  }
+
+  if (
+    !Number.isInteger(record.repetitions) ||
+    record.repetitions < 0 ||
+    record.repetitions > 10000
+  ) {
+    throw new Error("Invalid repetitions in sync payload");
+  }
+
+  if (Number.isNaN(new Date(record.nextReviewDate).getTime())) {
+    throw new Error("Invalid next review date in sync payload");
+  }
+}
+
+const toSupabasePayload = (record: AyahProgressRow) => ({
+  id: record.id,
+  user_id: record.userId,
+  surah_number: record.surahNumber,
+  ayah_number: record.ayahNumber,
+  ease_factor: record.easeFactor,
+  interval: record.interval,
+  repetitions: record.repetitions,
+  next_review_date: record.nextReviewDate,
+});
+
+async function pushAyahProgress(record: AyahProgressRow) {
+  validateAyahProgressRecord(record);
+
+  const supabase = getSupabaseBrowserClient();
+
+  if (!supabase) {
+    throw new Error("Supabase credentials are missing");
+  }
+
+  const { error } = await supabase
+    .from("ayah_progress")
+    .upsert(toSupabasePayload(record), {
+      onConflict: "user_id,surah_number,ayah_number",
+    });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function enqueueAyahProgressSync(record: AyahProgressRow) {
+  const now = new Date().toISOString();
+
+  await murajaahDB.syncQueue.add({
+    entity: "ayah_progress",
+    entityId: record.id,
+    payload: record,
+    status: "pending",
+    retryCount: 0,
+    createdAt: now,
+    updatedAt: now,
+  });
+}
+
+export async function processSyncQueue() {
+  if (activeSync) {
+    return activeSync;
+  }
+
+  activeSync = (async () => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return;
+    }
+
+    const pendingItems = await murajaahDB.syncQueue
+      .where("status")
+      .equals("pending")
+      .sortBy("createdAt");
+
+    for (const item of pendingItems) {
+      if (!item.localId) {
+        continue;
+      }
+
+      await murajaahDB.syncQueue.update(item.localId, {
+        status: "syncing",
+        updatedAt: new Date().toISOString(),
+      });
+
+      try {
+        await pushAyahProgress(item.payload);
+        await murajaahDB.syncQueue.delete(item.localId);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown sync error";
+        await murajaahDB.syncQueue.update(item.localId, {
+          status: "failed",
+          retryCount: item.retryCount + 1,
+          errorMessage: message,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    const failedItems = await murajaahDB.syncQueue
+      .where("status")
+      .equals("failed")
+      .toArray();
+
+    for (const item of failedItems) {
+      if (!item.localId) {
+        continue;
+      }
+
+      await murajaahDB.syncQueue.update(item.localId, {
+        status: "pending",
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  })();
+
+  try {
+    await activeSync;
+  } finally {
+    activeSync = null;
+  }
+}
+
+export function startBackgroundSync() {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  const onOnline = () => {
+    void processSyncQueue();
+  };
+
+  window.addEventListener("online", onOnline);
+
+  if (navigator.onLine) {
+    void processSyncQueue();
+  }
+
+  return () => {
+    window.removeEventListener("online", onOnline);
+  };
+}

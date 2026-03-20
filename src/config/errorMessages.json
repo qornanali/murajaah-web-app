@@ -1,0 +1,34 @@
+{
+  "en": {
+    "AUTH-INIT-001": "We couldn't initialize your session. Please refresh and try again.",
+    "AUTH-SIGNUP-001": "Sign up failed. Please check your details and try again.",
+    "AUTH-SIGNUP-002": "Sign up failed. Please try again shortly.",
+    "AUTH-SIGNIN-001": "Sign in failed. Please verify your email and password.",
+    "AUTH-SIGNIN-002": "Sign in failed. Please try again shortly.",
+    "AUTH-SIGNOUT-001": "Sign out failed. Please try again.",
+    "AUTH-SIGNOUT-002": "Sign out failed. Please try again.",
+    "REVIEW-QUEUE-001": "Unable to load your due reviews right now.",
+    "REVIEW-SAVE-001": "We couldn't save your review. Please try again.",
+    "QURAN-AYAH-001": "Unable to load ayah right now. Please try again.",
+    "PKG-LIST-001": "Unable to load learning packages right now.",
+    "PKG-ENROLL-001": "Unable to load your package progress right now.",
+    "PKG-UPDATE-001": "Unable to update package status. Please try again.",
+    "GENERIC-000": "Something went wrong. Please try again."
+  },
+  "id": {
+    "AUTH-INIT-001": "Sesi Anda tidak dapat dimulai. Silakan muat ulang dan coba lagi.",
+    "AUTH-SIGNUP-001": "Pendaftaran gagal. Periksa detail Anda lalu coba lagi.",
+    "AUTH-SIGNUP-002": "Pendaftaran gagal. Silakan coba lagi sebentar lagi.",
+    "AUTH-SIGNIN-001": "Gagal masuk. Periksa email dan kata sandi Anda.",
+    "AUTH-SIGNIN-002": "Gagal masuk. Silakan coba lagi sebentar lagi.",
+    "AUTH-SIGNOUT-001": "Gagal keluar. Silakan coba lagi.",
+    "AUTH-SIGNOUT-002": "Gagal keluar. Silakan coba lagi.",
+    "REVIEW-QUEUE-001": "Tidak dapat memuat antrean tinjauan saat ini.",
+    "REVIEW-SAVE-001": "Tinjauan tidak dapat disimpan. Silakan coba lagi.",
+    "QURAN-AYAH-001": "Ayat tidak dapat dimuat saat ini. Silakan coba lagi.",
+    "PKG-LIST-001": "Paket pembelajaran tidak dapat dimuat saat ini.",
+    "PKG-ENROLL-001": "Progres paket Anda tidak dapat dimuat saat ini.",
+    "PKG-UPDATE-001": "Status paket tidak dapat diperbarui. Silakan coba lagi.",
+    "GENERIC-000": "Terjadi kesalahan. Silakan coba lagi."
+  }
+}

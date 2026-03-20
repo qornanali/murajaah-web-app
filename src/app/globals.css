@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: #fdfcf0;
+  color: #064e3b;
+  background-image:
+    radial-gradient(circle at top, rgba(16, 185, 129, 0.12), transparent 32%),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.55),
+      rgba(253, 252, 240, 0.95)
+    );
+}
+
+.dark body {
+  background: #022c22;
+  color: #d1fae5;
+  background-image:
+    radial-gradient(circle at top, rgba(52, 211, 153, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(6, 78, 59, 0.2), rgba(2, 44, 34, 0.98));
+}
