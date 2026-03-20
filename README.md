@@ -22,14 +22,23 @@ Offline-first Quran memorization app using SM-2 spaced repetition.
   - surah name display (for context, e.g. `112:1` → `Al-Ikhlas`)
 - Auto-advance to next ayah after rating (with surah rollover)
 - Due review queue based on `nextReviewDate`
-- Learning packages with per-user status (`Start/Resume`, `Pause`, `Complete`)
-- Collapsible learning package panel (hidden by default)
+- Practice-first home layout (mobile-friendly)
+- Source picker bottom sheet with dual flow:
+  - direct surah practice
+  - learning package practice
+- Public learning package catalog (no sign-in required)
+- Learning package status with `Start/Resume`, `Pause`, `Complete`:
+  - authenticated users synced to Supabase
+  - guest users persisted locally
+- Surah/package search in source picker
+- Package pagination in source picker
 - Offline-first review writes to Dexie with background sync to Supabase
-- Supabase authentication (sign up / sign in / sign out)
+- Supabase authentication (sign up / sign in / sign out) + continue as guest
 - Quran.com ayah fetch (Uthmani text + audio)
 - EN/ID localization
-- Light/dark mode
+- Light/dark mode (icon toggle on home and auth screens)
 - Branded SVG logo + icon
+- Header info center modal (source, credit, legal, feedback)
 - Methodology section with Anki inspiration reference
 
 ## 1) Prerequisites
@@ -110,6 +119,7 @@ Inspired by Anki's spaced-repetition workflow:
 ## Data Source and Disclaimer
 
 - Main Quran text/audio source: https://quran.com
+- Learning package metadata source: Supabase (`memorization_packages`)
 - Always verify recitation and text with your mushaf.
 
 ## Deployment Recommendation
@@ -137,6 +147,8 @@ Alternative hosts:
 
 - Quran.com public read endpoints used here do not require an API key.
 - Offline reviews are saved locally first and synced when online.
+- Guest mode allows local-only progress without requiring login.
+- Published packages are readable publicly; guest package status is stored in local storage.
 
 ## Security Checklist
 
