@@ -39,6 +39,7 @@ export default function Home() {
 
   const user = useAuthStore((state) => state.user);
   const isLoading = useAuthStore((state) => state.isLoading);
+  const isInitialized = useAuthStore((state) => state.isInitialized);
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
   const signOut = useAuthStore((state) => state.signOut);
 
@@ -267,7 +268,7 @@ export default function Home() {
     return `${first}${maskedMiddle}${last}@${domain}`;
   };
 
-  if (isLoading) {
+  if (!guestUserId && !user && (isLoading || !isInitialized)) {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <div className="text-center text-emerald-950">
