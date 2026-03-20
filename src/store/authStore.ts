@@ -37,6 +37,7 @@ interface AuthState {
   user: User | null;
   isLoading: boolean;
   error: string | null;
+  isInitialized: boolean;
   signUp: (email: string, password: string) => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<boolean>;
   signOut: () => Promise<void>;
@@ -44,29 +45,49 @@ interface AuthState {
   unsubscribeFromAuth: (() => void) | null;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+let authInitInFlight: Promise<void> | null = null;
+
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: true,
   error: null,
+  isInitialized: false,
 
   unsubscribeFromAuth: null,
 
   initializeAuth: async () => {
+    if (authInitInFlight) {
+      await authInitInFlight;
+      return;
+    }
+
+    const existingUnsubscribe = get().unsubscribeFromAuth;
+    if (existingUnsubscribe) {
+      existingUnsubscribe();
+      set({ unsubscribeFromAuth: null });
+    }
+
     set({ isLoading: true, error: null });
 
-    try {
-      const user = await withTimeout(getSession());
-      set({ user, isLoading: false });
+    authInitInFlight = (async () => {
+      try {
+        const user = await withTimeout(getSession());
+        set({ user, isLoading: false, isInitialized: true });
 
-      const unsubscribe = onAuthStateChanged((updatedUser) => {
-        set({ user: updatedUser });
-      });
+        const unsubscribe = onAuthStateChanged((updatedUser) => {
+          set({ user: updatedUser, isLoading: false, isInitialized: true });
+        });
 
-      set({ unsubscribeFromAuth: unsubscribe });
-    } catch (error) {
-      const message = toUserError("AUTH-INIT-001", error);
-      set({ error: message, isLoading: false });
-    }
+        set({ unsubscribeFromAuth: unsubscribe });
+      } catch (error) {
+        const message = toUserError("AUTH-INIT-001", error);
+        set({ error: message, isLoading: false, isInitialized: true });
+      } finally {
+        authInitInFlight = null;
+      }
+    })();
+
+    await authInitInFlight;
   },
 
   signUp: async (email, password) => {
@@ -123,7 +144,12 @@ export const useAuthStore = create<AuthState>((set) => ({
         throw new Error(message);
       }
 
-      set({ user: null, isLoading: false });
+      const existingUnsubscribe = get().unsubscribeFromAuth;
+      if (existingUnsubscribe) {
+        existingUnsubscribe();
+      }
+
+      set({ user: null, isLoading: false, unsubscribeFromAuth: null });
     } catch (error) {
       const message = toUserError("AUTH-SIGNOUT-002", error);
       set({ error: message, isLoading: false });
