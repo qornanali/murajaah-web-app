@@ -626,11 +626,18 @@ export default function Home() {
           </div>
         ) : null}
 
-        <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-4 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+        <section className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-5 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="font-semibold">{t("page.dataSource", locale)}</p>
+            <span className="rounded-full border border-emerald-900/15 bg-emerald-900/5 px-3 py-1 text-[11px] font-medium text-emerald-900/75 dark:border-emerald-100/15 dark:bg-emerald-100/5 dark:text-emerald-100/75">
+              Trust & credits
+            </span>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-3">
-            <div>
+            <article className="rounded-2xl border border-emerald-900/10 bg-emerald-900/5 p-4 dark:border-emerald-100/10 dark:bg-emerald-100/5">
               <p className="font-semibold">{t("page.dataSource", locale)}</p>
-              <p className="mt-1 text-emerald-900/75 dark:text-emerald-200/80">
+              <p className="mt-2 text-emerald-900/75 dark:text-emerald-200/80">
                 <a
                   href="https://quran.com"
                   target="_blank"
@@ -641,16 +648,18 @@ export default function Home() {
                 </a>{" "}
                 · {t("page.quranTextSource", locale)}
               </p>
-            </div>
-            <div>
+            </article>
+
+            <article className="rounded-2xl border border-emerald-900/10 bg-emerald-900/5 p-4 dark:border-emerald-100/10 dark:bg-emerald-100/5">
               <p className="font-semibold">{t("page.disclaimer", locale)}</p>
-              <p className="mt-1 text-emerald-900/75 dark:text-emerald-200/80">
+              <p className="mt-2 text-emerald-900/75 dark:text-emerald-200/80">
                 {t("page.checkMushaf", locale)}
               </p>
-            </div>
-            <div>
+            </article>
+
+            <article className="rounded-2xl border border-emerald-900/10 bg-emerald-900/5 p-4 dark:border-emerald-100/10 dark:bg-emerald-100/5">
               <p className="font-semibold">{t("page.credit", locale)}</p>
-              <p className="mt-1 text-emerald-900/75 dark:text-emerald-200/80">
+              <p className="mt-2 text-emerald-900/75 dark:text-emerald-200/80">
                 Ali Qornan ·{" "}
                 <a
                   href="https://github.com/qornanali"
@@ -670,44 +679,46 @@ export default function Home() {
                   LinkedIn
                 </a>
               </p>
+            </article>
+          </div>
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+          <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-5 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+            <p className="font-semibold">{t("page.methodology", locale)}</p>
+            <div className="mt-3 space-y-2 text-emerald-900/80 dark:text-emerald-200/80">
+              <p>{t("page.methodologyStep1", locale)}</p>
+              <p>{t("page.methodologyStep2", locale)}</p>
+              <p>{t("page.methodologyStep3", locale)}</p>
+            </div>
+            <div className="mt-4 rounded-2xl border border-emerald-900/10 bg-emerald-900/5 p-4 text-emerald-900/80 dark:border-emerald-100/10 dark:bg-emerald-100/5 dark:text-emerald-100/80">
+              <p>{t("page.ankiInspired", locale)}</p>
+              <a
+                href="https://apps.ankiweb.net/"
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-block font-medium text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 dark:hover:text-emerald-100"
+              >
+                {t("page.ankiLink", locale)}
+              </a>
             </div>
           </div>
-        </div>
 
-        <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-5 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
-          <p className="font-semibold">{t("page.methodology", locale)}</p>
-          <div className="mt-3 space-y-2 text-emerald-900/80 dark:text-emerald-200/80">
-            <p>{t("page.methodologyStep1", locale)}</p>
-            <p>{t("page.methodologyStep2", locale)}</p>
-            <p>{t("page.methodologyStep3", locale)}</p>
-          </div>
-          <div className="mt-4 rounded-2xl border border-emerald-900/10 bg-emerald-900/5 p-4 text-emerald-900/80 dark:border-emerald-100/10 dark:bg-emerald-100/5 dark:text-emerald-100/80">
-            <p>{t("page.ankiInspired", locale)}</p>
+          <aside className="rounded-[28px] border border-emerald-900/20 bg-gradient-to-br from-emerald-900 to-emerald-700 p-5 text-sm text-white shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] dark:border-emerald-200/20 dark:from-emerald-900 dark:to-emerald-800">
+            <p className="font-semibold">{t("page.feedback", locale)}</p>
+            <p className="mt-2 text-white/90">
+              {t("page.feedbackDescription", locale)}
+            </p>
             <a
-              href="https://apps.ankiweb.net/"
+              href="https://forms.gle/zwdDtmFTQs2pARxK8"
               target="_blank"
               rel="noreferrer"
-              className="mt-2 inline-block font-medium text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 dark:hover:text-emerald-100"
+              className="mt-4 inline-flex rounded-lg bg-white px-3 py-2 text-xs font-semibold text-emerald-900 transition-colors hover:bg-emerald-50"
             >
-              {t("page.ankiLink", locale)}
+              {t("page.feedbackCta", locale)}
             </a>
-          </div>
-        </div>
-
-        <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-5 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
-          <p className="font-semibold">{t("page.feedback", locale)}</p>
-          <p className="mt-2 text-emerald-900/80 dark:text-emerald-200/80">
-            {t("page.feedbackDescription", locale)}
-          </p>
-          <a
-            href="https://forms.gle/zwdDtmFTQs2pARxK8"
-            target="_blank"
-            rel="noreferrer"
-            className="mt-3 inline-flex rounded-lg bg-emerald-900 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-800"
-          >
-            {t("page.feedbackCta", locale)}
-          </a>
-        </div>
+          </aside>
+        </section>
       </div>
     </main>
   );
