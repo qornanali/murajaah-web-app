@@ -5,7 +5,9 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import InfoModal, { type InfoTab } from "@/components/ui/InfoModal";
+import OnboardingModal from "@/components/ui/OnboardingModal";
 import AyahCard, { type AyahCardData } from "@/components/quran/AyahCard";
+import MethodologySection from "@/components/sections/MethodologySection";
 import { toUserError } from "@/lib/errorHandling";
 import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
@@ -27,6 +29,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useLocaleStore } from "@/store/localeStore";
 import { useReviewStore } from "@/store/reviewStore";
 import { useThemeStore } from "@/store/themeStore";
+import { useUIStore } from "@/store/uiStore";
 
 const defaultVerseKey = "1:1";
 const TOTAL_SURAHS = 114;
@@ -66,6 +69,14 @@ export default function Home() {
   const loadDueQueue = useReviewStore((state) => state.loadDueQueue);
   const loadAyahProgress = useReviewStore((state) => state.loadAyahProgress);
 
+  const hasSeenOnboardingModal = useUIStore(
+    (state) => state.hasSeenOnboardingModal,
+  );
+  const initializeUIState = useUIStore((state) => state.initializeUIState);
+  const dismissOnboardingModal = useUIStore(
+    (state) => state.dismissOnboardingModal,
+  );
+
   const [ayah, setAyah] = useState<AyahCardData | null>(null);
   const [ayahLoading, setAyahLoading] = useState(true);
   const [ayahError, setAyahError] = useState<string | null>(null);
@@ -90,6 +101,7 @@ export default function Home() {
   const [surahSearch, setSurahSearch] = useState("");
   const [packageSearch, setPackageSearch] = useState("");
   const [packagePage, setPackagePage] = useState(1);
+  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
 
   const authenticatedUserId = user?.id;
   const activeUserId = user?.id ?? guestUserId;
@@ -167,6 +179,10 @@ export default function Home() {
   }, [initializeTheme]);
 
   useEffect(() => {
+    initializeUIState();
+  }, [initializeUIState]);
+
+  useEffect(() => {
     void loadAyahFromApi(defaultVerseKey);
   }, []);
 
@@ -184,6 +200,12 @@ export default function Home() {
 
     void loadPackages();
   }, []);
+
+  useEffect(() => {
+    if (isInitialized && !hasSeenOnboardingModal) {
+      setIsOnboardingModalOpen(true);
+    }
+  }, [isInitialized, hasSeenOnboardingModal]);
 
   useEffect(() => {
     const loadEnrollments = async () => {
@@ -611,6 +633,8 @@ export default function Home() {
           </div>
         </div>
 
+        <MethodologySection locale={locale} />
+
         {ayahLoading ? (
           <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-4 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
             {t("page.loadingAyah", locale)}
@@ -726,29 +750,16 @@ export default function Home() {
             {error}
           </div>
         ) : null}
-
-        <section className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-5 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
-          <div>
-            <p className="font-semibold">{t("page.methodology", locale)}</p>
-            <div className="mt-3 space-y-2 text-emerald-900/80 dark:text-emerald-200/80">
-              <p>{t("page.methodologyStep1", locale)}</p>
-              <p>{t("page.methodologyStep2", locale)}</p>
-              <p>{t("page.methodologyStep3", locale)}</p>
-            </div>
-            <div className="mt-4 rounded-2xl border border-emerald-900/10 bg-emerald-900/5 p-4 text-emerald-900/80 dark:border-emerald-100/10 dark:bg-emerald-100/5 dark:text-emerald-100/80">
-              <p>{t("page.ankiInspired", locale)}</p>
-              <a
-                href="https://apps.ankiweb.net/"
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 inline-block font-medium text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 dark:hover:text-emerald-100"
-              >
-                {t("page.ankiLink", locale)}
-              </a>
-            </div>
-          </div>
-        </section>
       </div>
+
+      <OnboardingModal
+        isOpen={isOnboardingModalOpen}
+        locale={locale}
+        onClose={() => {
+          setIsOnboardingModalOpen(false);
+          dismissOnboardingModal();
+        }}
+      />
 
       <InfoModal
         activeTab={activeInfoTab}
