@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
+import InfoModal, { type InfoTab } from "@/components/ui/InfoModal";
 import AyahCard, { type AyahCardData } from "@/components/quran/AyahCard";
 import { toUserError } from "@/lib/errorHandling";
 import { getGuestUserId } from "@/lib/guest";
@@ -65,6 +66,8 @@ export default function Home() {
   const [packageActionId, setPackageActionId] = useState<string | null>(null);
   const [isPackagesCollapsed, setIsPackagesCollapsed] = useState(true);
   const [guestUserId, setGuestUserId] = useState<string | null>(null);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [activeInfoTab, setActiveInfoTab] = useState<InfoTab>("source");
 
   const activeUserId = user?.id ?? guestUserId;
   const isGuestMode = !user && Boolean(guestUserId);
@@ -200,6 +203,11 @@ export default function Home() {
 
     setSelectedPackageId(packageId);
     void loadAyahFromApi(nextPackage.starterVerseKey);
+  };
+
+  const openInfoModal = (tab: InfoTab) => {
+    setActiveInfoTab(tab);
+    setIsInfoModalOpen(true);
   };
 
   const updatePackageStatus = async (
@@ -608,6 +616,12 @@ export default function Home() {
             }
           />
         ) : null}
+        <section className="rounded-[28px] border border-amber-500/20 bg-amber-50/90 p-4 text-sm text-amber-950 shadow-[0_20px_60px_-36px_rgba(217,119,6,0.28)] dark:border-amber-300/20 dark:bg-amber-950/30 dark:text-amber-100">
+          <p className="font-semibold">{t("page.disclaimer", locale)}</p>
+          <p className="mt-1 text-amber-900/80 dark:text-amber-100/80">
+            {t("page.checkMushaf", locale)}
+          </p>
+        </section>
         {latestProgress ? (
           <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-4 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
             {t("page.ef", locale)}: {latestProgress.easeFactor} ·{" "}
@@ -625,63 +639,6 @@ export default function Home() {
             {error}
           </div>
         ) : null}
-
-        <section className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-5 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="font-semibold">{t("page.dataSource", locale)}</p>
-            <span className="rounded-full border border-emerald-900/15 bg-emerald-900/5 px-3 py-1 text-[11px] font-medium text-emerald-900/75 dark:border-emerald-100/15 dark:bg-emerald-100/5 dark:text-emerald-100/75">
-              Trust & credits
-            </span>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <article className="rounded-2xl border border-emerald-900/10 bg-emerald-900/5 p-4 dark:border-emerald-100/10 dark:bg-emerald-100/5">
-              <p className="font-semibold">{t("page.dataSource", locale)}</p>
-              <p className="mt-2 text-emerald-900/75 dark:text-emerald-200/80">
-                <a
-                  href="https://quran.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-medium text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 dark:hover:text-emerald-100"
-                >
-                  Quran.com
-                </a>{" "}
-                · {t("page.quranTextSource", locale)}
-              </p>
-            </article>
-
-            <article className="rounded-2xl border border-emerald-900/10 bg-emerald-900/5 p-4 dark:border-emerald-100/10 dark:bg-emerald-100/5">
-              <p className="font-semibold">{t("page.disclaimer", locale)}</p>
-              <p className="mt-2 text-emerald-900/75 dark:text-emerald-200/80">
-                {t("page.checkMushaf", locale)}
-              </p>
-            </article>
-
-            <article className="rounded-2xl border border-emerald-900/10 bg-emerald-900/5 p-4 dark:border-emerald-100/10 dark:bg-emerald-100/5">
-              <p className="font-semibold">{t("page.credit", locale)}</p>
-              <p className="mt-2 text-emerald-900/75 dark:text-emerald-200/80">
-                Ali Qornan ·{" "}
-                <a
-                  href="https://github.com/qornanali"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-medium text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 dark:hover:text-emerald-100"
-                >
-                  GitHub
-                </a>{" "}
-                ·{" "}
-                <a
-                  href="https://www.linkedin.com/in/aliqornan/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-medium text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 dark:hover:text-emerald-100"
-                >
-                  LinkedIn
-                </a>
-              </p>
-            </article>
-          </div>
-        </section>
 
         <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
           <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-5 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
@@ -705,21 +662,118 @@ export default function Home() {
           </div>
 
           <aside className="rounded-[28px] border border-emerald-900/20 bg-gradient-to-br from-emerald-900 to-emerald-700 p-5 text-sm text-white shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] dark:border-emerald-200/20 dark:from-emerald-900 dark:to-emerald-800">
-            <p className="font-semibold">{t("page.feedback", locale)}</p>
+            <p className="font-semibold">{t("page.infoCenter", locale)}</p>
             <p className="mt-2 text-white/90">
-              {t("page.feedbackDescription", locale)}
+              {t("page.infoCenterDescription", locale)}
             </p>
-            <a
-              href="https://forms.gle/zwdDtmFTQs2pARxK8"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-4 inline-flex rounded-lg bg-white px-3 py-2 text-xs font-semibold text-emerald-900 transition-colors hover:bg-emerald-50"
-            >
-              {t("page.feedbackCta", locale)}
-            </a>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                aria-label={`${t("page.openInfoCenter", locale)}: ${t("page.sourceTab", locale)}`}
+                onClick={() => openInfoModal("source")}
+                className="rounded-2xl border border-white/15 bg-white/10 p-3 text-left transition-colors hover:bg-white/15"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  className="h-5 w-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 17A2.5 2.5 0 0 0 4 14.5V5a2 2 0 0 1 2-2h14v14" />
+                </svg>
+                <p className="mt-2 text-xs font-semibold text-white">
+                  {t("page.sourceTab", locale)}
+                </p>
+              </button>
+
+              <button
+                type="button"
+                aria-label={`${t("page.openInfoCenter", locale)}: ${t("page.creditTab", locale)}`}
+                onClick={() => openInfoModal("credit")}
+                className="rounded-2xl border border-white/15 bg-white/10 p-3 text-left transition-colors hover:bg-white/15"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  className="h-5 w-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Z" />
+                  <path d="M5 20a7 7 0 0 1 14 0" />
+                </svg>
+                <p className="mt-2 text-xs font-semibold text-white">
+                  {t("page.creditTab", locale)}
+                </p>
+              </button>
+
+              <button
+                type="button"
+                aria-label={`${t("page.openInfoCenter", locale)}: ${t("page.legalTab", locale)}`}
+                onClick={() => openInfoModal("legal")}
+                className="rounded-2xl border border-white/15 bg-white/10 p-3 text-left transition-colors hover:bg-white/15"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  className="h-5 w-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 3 5 7v5c0 5 3.5 7.5 7 9 3.5-1.5 7-4 7-9V7l-7-4Z" />
+                  <path d="m9.5 12 1.5 1.5 3.5-3.5" />
+                </svg>
+                <p className="mt-2 text-xs font-semibold text-white">
+                  {t("page.legalTab", locale)}
+                </p>
+              </button>
+
+              <button
+                type="button"
+                aria-label={`${t("page.openInfoCenter", locale)}: ${t("page.feedbackTab", locale)}`}
+                onClick={() => openInfoModal("feedback")}
+                className="rounded-2xl border border-white/15 bg-white/10 p-3 text-left transition-colors hover:bg-white/15"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  className="h-5 w-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />
+                </svg>
+                <p className="mt-2 text-xs font-semibold text-white">
+                  {t("page.feedbackTab", locale)}
+                </p>
+              </button>
+            </div>
           </aside>
         </section>
       </div>
+
+      <InfoModal
+        activeTab={activeInfoTab}
+        isOpen={isInfoModalOpen}
+        locale={locale}
+        onClose={() => setIsInfoModalOpen(false)}
+        onSelectTab={setActiveInfoTab}
+      />
     </main>
   );
 }

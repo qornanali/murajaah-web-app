@@ -70,7 +70,21 @@
     "page.ankiLink": "Anki official website",
     "page.feedback": "Feedback",
     "page.feedbackDescription": "Help improve Murajaah by sharing bugs, ideas, or suggestions.",
-    "page.feedbackCta": "Open feedback form"
+    "page.feedbackCta": "Open feedback form",
+    "page.infoCenter": "Info center",
+    "page.infoCenterDescription": "Open source, credit, legal, and feedback details without cluttering the practice flow.",
+    "page.sourceTab": "Source",
+    "page.creditTab": "Credit",
+    "page.legalTab": "Legal",
+    "page.feedbackTab": "Feedback",
+    "page.closeModal": "Close",
+    "page.openInfoCenter": "Open info center",
+    "page.sourceDescription": "Murajaah uses Quran.com for verse text and audio playback.",
+    "page.creditDescription": "Built by Ali Qornan as a focused murajaah companion for lightweight daily review.",
+    "page.privacyTitle": "Privacy",
+    "page.privacyBody": "Guest-mode progress stays on your device. Signed-in usage stores only the review data needed to run your memorization history and package status.",
+    "page.termsTitle": "Terms",
+    "page.termsBody": "Murajaah is a study aid. Please verify recitation and text against your mushaf and use the app responsibly as a personal memorization companion."
   },
   "id": {
     "common.loading": "Memuat...",
@@ -143,6 +157,20 @@
     "page.ankiLink": "Situs resmi Anki",
     "page.feedback": "Masukan",
     "page.feedbackDescription": "Bantu tingkatkan Murajaah dengan melaporkan bug, ide, atau saran.",
-    "page.feedbackCta": "Buka formulir masukan"
+    "page.feedbackCta": "Buka formulir masukan",
+    "page.infoCenter": "Pusat info",
+    "page.infoCenterDescription": "Buka detail sumber, kredit, legal, dan masukan tanpa mengganggu alur murajaah.",
+    "page.sourceTab": "Sumber",
+    "page.creditTab": "Kredit",
+    "page.legalTab": "Legal",
+    "page.feedbackTab": "Masukan",
+    "page.closeModal": "Tutup",
+    "page.openInfoCenter": "Buka pusat info",
+    "page.sourceDescription": "Murajaah menggunakan Quran.com untuk teks ayat dan pemutaran audio.",
+    "page.creditDescription": "Dibangun oleh Ali Qornan sebagai pendamping murajaah yang ringan dan fokus untuk review harian.",
+    "page.privacyTitle": "Privasi",
+    "page.privacyBody": "Progress mode tamu tetap di perangkat Anda. Saat masuk, aplikasi hanya menyimpan data review yang diperlukan untuk riwayat hafalan dan status paket Anda.",
+    "page.termsTitle": "Ketentuan",
+    "page.termsBody": "Murajaah adalah alat bantu belajar. Mohon verifikasi bacaan dan teks dengan mushaf Anda serta gunakan aplikasi ini secara bijak sebagai pendamping hafalan pribadi."
   }
 }
