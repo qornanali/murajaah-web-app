@@ -14,6 +14,7 @@ import {
   fetchUserPackageEnrollments,
   setUserPackageEnrollmentStatus,
 } from "@/lib/packages/api";
+import { PACKAGE_CATALOG } from "@/lib/packages/catalog";
 import {
   type MemorizationPackage,
   type PackageEnrollmentStatus,
@@ -177,9 +178,7 @@ export default function Home() {
         const publishedPackages = await fetchPublishedMemorizationPackages();
         setPackages(publishedPackages);
       } catch (loadError) {
-        const message = toUserError("PKG-LIST-001", loadError);
-        setPackagesError(message);
-        setPackages([]);
+        setPackages(PACKAGE_CATALOG);
       }
     };
 
@@ -312,7 +311,7 @@ export default function Home() {
     packageId: string,
     status: PackageEnrollmentStatus,
   ) => {
-    if (!user?.id && !isGuestMode) {
+    if (!activeUserId) {
       return;
     }
 
