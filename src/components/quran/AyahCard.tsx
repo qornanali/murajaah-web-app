@@ -20,6 +20,13 @@ interface AyahCardProps {
   ayah: AyahCardData;
   onRate: (rating: SM2Rating) => void;
   isSubmitting?: boolean;
+  autoRevealState?: {
+    isActive: boolean;
+    remainingSeconds: number;
+    totalSeconds: number;
+    sessionId: number;
+  } | null;
+  onForceSkipAutoReveal?: () => void;
   relearningState?: {
     attempt: number;
     queueSize: number;
@@ -63,6 +70,8 @@ export default function AyahCard({
   ayah,
   onRate,
   isSubmitting = false,
+  autoRevealState = null,
+  onForceSkipAutoReveal,
   relearningState = null,
   reviewState,
 }: AyahCardProps) {
@@ -70,8 +79,11 @@ export default function AyahCard({
   const [revealed, setRevealed] = useState(false);
   const [visibleChunkCount, setVisibleChunkCount] = useState(1);
   const [activeRating, setActiveRating] = useState<SM2Rating | null>(null);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const feedbackTimerRef = useRef<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const surahName = getSurahName(ayah.surahNumber);
+  const isAutoRevealActive = Boolean(autoRevealState?.isActive);
 
   const chunks = useMemo(
     () => splitAyahByWaqf(ayah.textUthmani),
@@ -86,7 +98,28 @@ export default function AyahCard({
     setRevealed(false);
     setVisibleChunkCount(1);
     setActiveRating(null);
+    setAutoplayBlocked(false);
   }, [ayah.surahNumber, ayah.ayahNumber]);
+
+  useEffect(() => {
+    if (!isAutoRevealActive) {
+      return;
+    }
+
+    setRevealed(true);
+    setVisibleChunkCount(chunks.length);
+  }, [chunks.length, isAutoRevealActive]);
+
+  useEffect(() => {
+    if (!isAutoRevealActive || !ayah.audioUrl || !audioRef.current) {
+      return;
+    }
+
+    setAutoplayBlocked(false);
+    void audioRef.current.play().catch(() => {
+      setAutoplayBlocked(true);
+    });
+  }, [ayah.audioUrl, autoRevealState?.sessionId, isAutoRevealActive]);
 
   useEffect(() => {
     return () => {
@@ -148,6 +181,10 @@ export default function AyahCard({
   }, [baseEaseFactor, baseInterval, baseRepetitions, previewCopy]);
 
   const handleRevealToggle = () => {
+    if (isAutoRevealActive) {
+      return;
+    }
+
     setRevealed((current) => {
       const next = !current;
 
@@ -171,7 +208,7 @@ export default function AyahCard({
             : "";
 
   const handleRateClick = (rating: SM2Rating) => {
-    if (isSubmitting) {
+    if (isSubmitting || isAutoRevealActive) {
       return;
     }
 
@@ -220,6 +257,7 @@ export default function AyahCard({
           <button
             type="button"
             onClick={handleRevealToggle}
+            disabled={isAutoRevealActive}
             className="rounded-xl border border-emerald-900/15 bg-emerald-900 px-5 py-2.5 text-sm font-semibold text-[#FDFCF0] transition-colors hover:bg-emerald-800 dark:border-emerald-100/10"
           >
             {revealed ? t("quran.hideHint", locale) : t("quran.reveal", locale)}
@@ -251,6 +289,7 @@ export default function AyahCard({
           {ayah.audioUrl ? (
             <div className="mb-6">
               <audio
+                ref={audioRef}
                 className="w-full"
                 controls
                 preload="none"
@@ -258,6 +297,30 @@ export default function AyahCard({
               >
                 {t("quran.audioNotSupported", locale)}
               </audio>
+
+              {isAutoRevealActive ? (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-900/15 bg-emerald-900/5 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-100/15 dark:bg-emerald-100/5 dark:text-emerald-100">
+                  <p>
+                    {t("quran.autoAdvanceCountdown", locale)}:{" "}
+                    {autoRevealState?.remainingSeconds}s
+                  </p>
+                  {onForceSkipAutoReveal ? (
+                    <button
+                      type="button"
+                      onClick={onForceSkipAutoReveal}
+                      className="rounded-lg bg-emerald-900 px-2.5 py-1.5 font-semibold text-[#FDFCF0] transition-colors hover:bg-emerald-800"
+                    >
+                      {t("quran.forceSkipReveal", locale)}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {autoplayBlocked ? (
+                <p className="mt-2 text-xs text-emerald-900/75 dark:text-emerald-100/75">
+                  {t("quran.autoplayBlockedFallback", locale)}
+                </p>
+              ) : null}
             </div>
           ) : null}
 
@@ -294,7 +357,7 @@ export default function AyahCard({
           >
             <button
               type="button"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isAutoRevealActive}
               onClick={() => handleRateClick(button.value)}
               className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 motion-reduce:transition-none ${button.classes} ${
                 activeRating === button.value

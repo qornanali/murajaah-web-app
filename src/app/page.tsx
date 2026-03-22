@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
@@ -33,6 +33,7 @@ import { murajaahDB } from "@/lib/offline/db";
 import { startBackgroundSync } from "@/lib/offline/sync";
 import { fetchAyahByKey, fetchNextAyah, toVerseKey } from "@/lib/quranApi";
 import { getSurahName } from "@/lib/quranMeta";
+import { estimateRevealDurationSeconds } from "@/lib/quranUtils";
 import { type SM2Rating } from "@/lib/srs";
 import { useAuthStore } from "@/store/authStore";
 import { useLocaleStore } from "@/store/localeStore";
@@ -46,6 +47,17 @@ const PACKAGE_PAGE_SIZE = 6;
 const GUEST_PACKAGE_STATUS_PREFIX = "murajaah.guest.packageStatus";
 const GUEST_PACKAGE_TARGET_PREFIX = "murajaah.guest.packageTarget";
 const DEFAULT_DAILY_NEW_TARGET = 3;
+
+const AUTO_REVEAL_RATINGS: ReadonlySet<SM2Rating> = new Set([1, 2]);
+
+interface PostRatingRevealState {
+  verseKey: string;
+  rating: SM2Rating;
+  totalSeconds: number;
+  remainingSeconds: number;
+  expiresAt: number;
+  sessionId: number;
+}
 
 const surahOptions = Array.from({ length: TOTAL_SURAHS }, (_, index) => {
   const surahNumber = index + 1;
@@ -149,8 +161,11 @@ export default function Home() {
   const [completedSurahNumber, setCompletedSurahNumber] = useState<
     number | null
   >(null);
+  const [postRatingReveal, setPostRatingReveal] =
+    useState<PostRatingRevealState | null>(null);
 
   const [sessionNewAyahBaseline, setSessionNewAyahBaseline] = useState(0);
+  const postRatingRevealFinalizingRef = useRef(false);
   const BREAK_THRESHOLD = 10;
   const authenticatedUserId = user?.id;
   const activeUserId = user?.id ?? guestUserId;
@@ -550,113 +565,232 @@ export default function Home() {
     }
   }, [ayah, selectedPackageId, surahMasteryData]);
 
+  const commitRatingAndAdvance = useCallback(
+    async (rating: SM2Rating, ayahToRate: AyahCardData) => {
+      if (!activeUserId) {
+        return;
+      }
+
+      const currentVerseKey = toVerseKey(
+        ayahToRate.surahNumber,
+        ayahToRate.ayahNumber,
+      );
+      const activePackageId = selectedPackageId;
+      const activePackageStatus = activePackageId
+        ? packageStatusById[activePackageId]
+        : undefined;
+      const activePackageTarget = activePackageId
+        ? (packageDailyTargetById[activePackageId] ?? DEFAULT_DAILY_NEW_TARGET)
+        : null;
+      const activePackageVerseKeys = activePackageId
+        ? packageVerseKeysById[activePackageId]
+        : undefined;
+      const isCurrentVerseInsideActivePackage = Boolean(
+        activePackageVerseKeys?.has(currentVerseKey),
+      );
+      const isCurrentVerseNewForUser = !reviewedVerseKeys.has(currentVerseKey);
+      const isCurrentVerseInRelearning = sessionRelearnQueue.some(
+        (item) => item.verseKey === currentVerseKey,
+      );
+
+      await rateAyah({
+        userId: activeUserId,
+        surahNumber: ayahToRate.surahNumber,
+        ayahNumber: ayahToRate.ayahNumber,
+        rating,
+      });
+
+      const nextReviewedVerseKeys = new Set(reviewedVerseKeys);
+      nextReviewedVerseKeys.add(currentVerseKey);
+      setReviewedVerseKeys(nextReviewedVerseKeys);
+
+      const nextNewVerseKeysToday = new Set(newVerseKeysToday);
+      if (isCurrentVerseNewForUser) {
+        nextNewVerseKeysToday.add(currentVerseKey);
+        setNewVerseKeysToday(nextNewVerseKeysToday);
+      }
+
+      void loadDueQueue(activeUserId);
+
+      let nextSessionRelearnQueue = sessionRelearnQueue;
+
+      if (rating <= 2) {
+        nextSessionRelearnQueue = enqueueSessionRelearn({
+          surahNumber: ayahToRate.surahNumber,
+          ayahNumber: ayahToRate.ayahNumber,
+          rating,
+        });
+      } else if (isCurrentVerseInRelearning) {
+        nextSessionRelearnQueue = resolveSessionRelearn(currentVerseKey);
+      }
+
+      let nextDailyTargetNotice: string | null = null;
+
+      if (
+        activePackageId &&
+        activePackageStatus === "active" &&
+        activePackageTarget !== null &&
+        activePackageVerseKeys &&
+        isCurrentVerseInsideActivePackage &&
+        isCurrentVerseNewForUser
+      ) {
+        let newVersesTodayCount = 0;
+
+        activePackageVerseKeys.forEach((verseKey) => {
+          if (nextNewVerseKeysToday.has(verseKey)) {
+            newVersesTodayCount += 1;
+          }
+        });
+
+        if (newVersesTodayCount >= activePackageTarget) {
+          nextDailyTargetNotice = `${t("page.dailyLimitReached", locale)} ${activePackageTarget}.`;
+        }
+      }
+
+      setDailyTargetNotice(nextDailyTargetNotice);
+
+      const nextRelearnItem = nextSessionRelearnQueue[0] ?? null;
+
+      if (nextRelearnItem) {
+        await loadAyahFromApi(nextRelearnItem.verseKey);
+        return;
+      }
+
+      if (nextDailyTargetNotice) {
+        return;
+      }
+
+      try {
+        const nextAyah = await fetchNextAyah(
+          ayahToRate.surahNumber,
+          ayahToRate.ayahNumber,
+        );
+        setAyah(nextAyah);
+        setSelectedVerseKey(nextAyah.verseKey);
+        setSelectedSurahNumber(nextAyah.surahNumber);
+        setAyahError(null);
+        void loadAyahProgress(
+          activeUserId,
+          nextAyah.surahNumber,
+          nextAyah.ayahNumber,
+        );
+      } catch (loadError) {
+        const message = toUserError("QURAN-AYAH-001", loadError);
+        setAyahError(message);
+      }
+    },
+    [
+      activeUserId,
+      enqueueSessionRelearn,
+      loadAyahFromApi,
+      loadAyahProgress,
+      loadDueQueue,
+      locale,
+      newVerseKeysToday,
+      packageDailyTargetById,
+      packageStatusById,
+      packageVerseKeysById,
+      rateAyah,
+      resolveSessionRelearn,
+      reviewedVerseKeys,
+      selectedPackageId,
+      sessionRelearnQueue,
+    ],
+  );
+
+  const clearPostRatingReveal = () => {
+    setPostRatingReveal(null);
+    postRatingRevealFinalizingRef.current = false;
+  };
+
   const handleRate = async (rating: SM2Rating) => {
-    if (!activeUserId || !ayah) {
+    if (!activeUserId || !ayah || isSaving || postRatingReveal) {
       return;
     }
 
     const currentVerseKey = toVerseKey(ayah.surahNumber, ayah.ayahNumber);
-    const activePackageId = selectedPackageId;
-    const activePackageStatus = activePackageId
-      ? packageStatusById[activePackageId]
-      : undefined;
-    const activePackageTarget = activePackageId
-      ? (packageDailyTargetById[activePackageId] ?? DEFAULT_DAILY_NEW_TARGET)
-      : null;
-    const activePackageVerseKeys = activePackageId
-      ? packageVerseKeysById[activePackageId]
-      : undefined;
-    const isCurrentVerseInsideActivePackage = Boolean(
-      activePackageVerseKeys?.has(currentVerseKey),
-    );
-    const isCurrentVerseNewForUser = !reviewedVerseKeys.has(currentVerseKey);
-    const isCurrentVerseInRelearning = sessionRelearnQueue.some(
-      (item) => item.verseKey === currentVerseKey,
-    );
 
-    await rateAyah({
-      userId: activeUserId,
-      surahNumber: ayah.surahNumber,
-      ayahNumber: ayah.ayahNumber,
-      rating,
-    });
+    if (AUTO_REVEAL_RATINGS.has(rating)) {
+      const totalSeconds = estimateRevealDurationSeconds(ayah.textUthmani);
+      const now = Date.now();
 
-    const nextReviewedVerseKeys = new Set(reviewedVerseKeys);
-    nextReviewedVerseKeys.add(currentVerseKey);
-    setReviewedVerseKeys(nextReviewedVerseKeys);
-
-    const nextNewVerseKeysToday = new Set(newVerseKeysToday);
-    if (isCurrentVerseNewForUser) {
-      nextNewVerseKeysToday.add(currentVerseKey);
-      setNewVerseKeysToday(nextNewVerseKeysToday);
-    }
-
-    void loadDueQueue(activeUserId);
-
-    let nextSessionRelearnQueue = sessionRelearnQueue;
-
-    if (rating <= 2) {
-      nextSessionRelearnQueue = enqueueSessionRelearn({
-        surahNumber: ayah.surahNumber,
-        ayahNumber: ayah.ayahNumber,
+      setPostRatingReveal({
+        verseKey: currentVerseKey,
         rating,
+        totalSeconds,
+        remainingSeconds: totalSeconds,
+        expiresAt: now + totalSeconds * 1000,
+        sessionId: now,
       });
-    } else if (isCurrentVerseInRelearning) {
-      nextSessionRelearnQueue = resolveSessionRelearn(currentVerseKey);
-    }
-
-    let nextDailyTargetNotice: string | null = null;
-
-    if (
-      activePackageId &&
-      activePackageStatus === "active" &&
-      activePackageTarget !== null &&
-      activePackageVerseKeys &&
-      isCurrentVerseInsideActivePackage &&
-      isCurrentVerseNewForUser
-    ) {
-      let newVersesTodayCount = 0;
-
-      activePackageVerseKeys.forEach((verseKey) => {
-        if (nextNewVerseKeysToday.has(verseKey)) {
-          newVersesTodayCount += 1;
-        }
-      });
-
-      if (newVersesTodayCount >= activePackageTarget) {
-        nextDailyTargetNotice = `${t("page.dailyLimitReached", locale)} ${activePackageTarget}.`;
-      }
-    }
-
-    setDailyTargetNotice(nextDailyTargetNotice);
-
-    const nextRelearnItem = nextSessionRelearnQueue[0] ?? null;
-
-    if (nextRelearnItem) {
-      await loadAyahFromApi(nextRelearnItem.verseKey);
       return;
     }
 
-    if (nextDailyTargetNotice) {
-      return;
-    }
-
-    try {
-      const nextAyah = await fetchNextAyah(ayah.surahNumber, ayah.ayahNumber);
-      setAyah(nextAyah);
-      setSelectedVerseKey(nextAyah.verseKey);
-      setSelectedSurahNumber(nextAyah.surahNumber);
-      setAyahError(null);
-      void loadAyahProgress(
-        activeUserId,
-        nextAyah.surahNumber,
-        nextAyah.ayahNumber,
-      );
-    } catch (loadError) {
-      const message = toUserError("QURAN-AYAH-001", loadError);
-      setAyahError(message);
-    }
+    await commitRatingAndAdvance(rating, ayah);
   };
+
+  const handleForceSkipPostRatingReveal = () => {
+    if (postRatingRevealFinalizingRef.current) {
+      return;
+    }
+
+    clearPostRatingReveal();
+  };
+
+  useEffect(() => {
+    if (!postRatingReveal || !ayah) {
+      return;
+    }
+
+    const currentVerseKey = toVerseKey(ayah.surahNumber, ayah.ayahNumber);
+
+    if (currentVerseKey !== postRatingReveal.verseKey) {
+      clearPostRatingReveal();
+      return;
+    }
+
+    const tick = () => {
+      const remaining = Math.max(
+        0,
+        Math.ceil((postRatingReveal.expiresAt - Date.now()) / 1000),
+      );
+
+      setPostRatingReveal((previous) =>
+        previous ? { ...previous, remainingSeconds: remaining } : previous,
+      );
+
+      if (remaining <= 0) {
+        window.clearInterval(intervalId);
+
+        if (postRatingRevealFinalizingRef.current) {
+          return;
+        }
+
+        const snapshotVerseKey = toVerseKey(ayah.surahNumber, ayah.ayahNumber);
+
+        if (snapshotVerseKey !== postRatingReveal.verseKey) {
+          setPostRatingReveal(null);
+          postRatingRevealFinalizingRef.current = false;
+          return;
+        }
+
+        postRatingRevealFinalizingRef.current = true;
+        setPostRatingReveal(null);
+
+        void commitRatingAndAdvance(postRatingReveal.rating, ayah).finally(
+          () => {
+            postRatingRevealFinalizingRef.current = false;
+          },
+        );
+      }
+    };
+
+    const intervalId = window.setInterval(tick, 250);
+    tick();
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [ayah, commitRatingAndAdvance, postRatingReveal]);
 
   const handleStartDueReview = (verseKey: string) => {
     void loadAyahFromApi(verseKey);
@@ -1122,8 +1256,19 @@ export default function Home() {
             ) : ayah ? (
               <AyahCard
                 ayah={ayah}
-                isSubmitting={isSaving}
+                isSubmitting={isSaving || Boolean(postRatingReveal)}
                 onRate={handleRate}
+                autoRevealState={
+                  postRatingReveal
+                    ? {
+                        isActive: true,
+                        remainingSeconds: postRatingReveal.remainingSeconds,
+                        totalSeconds: postRatingReveal.totalSeconds,
+                        sessionId: postRatingReveal.sessionId,
+                      }
+                    : null
+                }
+                onForceSkipAutoReveal={handleForceSkipPostRatingReveal}
                 relearningState={
                   activeRelearnItem
                     ? {
