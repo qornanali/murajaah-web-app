@@ -70,10 +70,22 @@ export default function Home() {
 
   const latestProgress = useReviewStore((state) => state.latestProgress);
   const dueQueue = useReviewStore((state) => state.dueQueue);
+  const sessionRelearnQueue = useReviewStore(
+    (state) => state.sessionRelearnQueue,
+  );
   const isQueueLoading = useReviewStore((state) => state.isQueueLoading);
   const isSaving = useReviewStore((state) => state.isSaving);
   const error = useReviewStore((state) => state.error);
   const rateAyah = useReviewStore((state) => state.rateAyah);
+  const enqueueSessionRelearn = useReviewStore(
+    (state) => state.enqueueSessionRelearn,
+  );
+  const resolveSessionRelearn = useReviewStore(
+    (state) => state.resolveSessionRelearn,
+  );
+  const clearSessionRelearn = useReviewStore(
+    (state) => state.clearSessionRelearn,
+  );
   const loadDueQueue = useReviewStore((state) => state.loadDueQueue);
   const loadAyahProgress = useReviewStore((state) => state.loadAyahProgress);
 
@@ -105,6 +117,9 @@ export default function Home() {
   );
   const [newVerseKeysToday, setNewVerseKeysToday] = useState<Set<string>>(
     new Set(),
+  );
+  const [averageEaseFactor, setAverageEaseFactor] = useState<number | null>(
+    null,
   );
   const [dailyTargetNotice, setDailyTargetNotice] = useState<string | null>(
     null,
@@ -203,6 +218,35 @@ export default function Home() {
       packageVerseKeys.has(toVerseKey(item.surahNumber, item.ayahNumber)),
     );
   }, [dueQueue, selectedPackageId, packageVerseKeysById]);
+
+  const activeRelearnIndex = useMemo(
+    () =>
+      sessionRelearnQueue.findIndex(
+        (item) => item.verseKey === selectedVerseKey,
+      ),
+    [selectedVerseKey, sessionRelearnQueue],
+  );
+
+  const activeRelearnItem = useMemo(
+    () =>
+      activeRelearnIndex >= 0 ? sessionRelearnQueue[activeRelearnIndex] : null,
+    [activeRelearnIndex, sessionRelearnQueue],
+  );
+
+  const activePackagesCount = useMemo(
+    () =>
+      Object.values(packageStatusById).filter((status) => status === "active")
+        .length,
+    [packageStatusById],
+  );
+
+  const completedPackagesCount = useMemo(
+    () =>
+      Object.values(packageStatusById).filter(
+        (status) => status === "completed",
+      ).length,
+    [packageStatusById],
+  );
 
   const loadAyahFromApi = async (verseKey: string) => {
     setAyahLoading(true);
@@ -379,6 +423,7 @@ export default function Home() {
       if (!activeUserId) {
         setReviewedVerseKeys(new Set());
         setNewVerseKeysToday(new Set());
+        clearSessionRelearn();
         return;
       }
 
@@ -408,10 +453,20 @@ export default function Home() {
 
       setReviewedVerseKeys(reviewed);
       setNewVerseKeysToday(newToday);
+      setAverageEaseFactor(
+        allRows.length > 0
+          ? Number(
+              (
+                allRows.reduce((sum, row) => sum + row.easeFactor, 0) /
+                allRows.length
+              ).toFixed(2),
+            )
+          : null,
+      );
     };
 
     void loadProgressState();
-  }, [activeUserId]);
+  }, [activeUserId, clearSessionRelearn]);
 
   useEffect(() => {
     if (activeUserId && ayah) {
@@ -445,6 +500,9 @@ export default function Home() {
       activePackageVerseKeys?.has(currentVerseKey),
     );
     const isCurrentVerseNewForUser = !reviewedVerseKeys.has(currentVerseKey);
+    const isCurrentVerseInRelearning = sessionRelearnQueue.some(
+      (item) => item.verseKey === currentVerseKey,
+    );
 
     await rateAyah({
       userId: activeUserId,
@@ -465,6 +523,20 @@ export default function Home() {
 
     void loadDueQueue(activeUserId);
 
+    let nextSessionRelearnQueue = sessionRelearnQueue;
+
+    if (rating <= 2) {
+      nextSessionRelearnQueue = enqueueSessionRelearn({
+        surahNumber: ayah.surahNumber,
+        ayahNumber: ayah.ayahNumber,
+        rating,
+      });
+    } else if (isCurrentVerseInRelearning) {
+      nextSessionRelearnQueue = resolveSessionRelearn(currentVerseKey);
+    }
+
+    let nextDailyTargetNotice: string | null = null;
+
     if (
       activePackageId &&
       activePackageStatus === "active" &&
@@ -482,14 +554,22 @@ export default function Home() {
       });
 
       if (newVersesTodayCount >= activePackageTarget) {
-        setDailyTargetNotice(
-          `${t("page.dailyLimitReached", locale)} ${activePackageTarget}.`,
-        );
-        return;
+        nextDailyTargetNotice = `${t("page.dailyLimitReached", locale)} ${activePackageTarget}.`;
       }
     }
 
-    setDailyTargetNotice(null);
+    setDailyTargetNotice(nextDailyTargetNotice);
+
+    const nextRelearnItem = nextSessionRelearnQueue[0] ?? null;
+
+    if (nextRelearnItem) {
+      await loadAyahFromApi(nextRelearnItem.verseKey);
+      return;
+    }
+
+    if (nextDailyTargetNotice) {
+      return;
+    }
 
     try {
       const nextAyah = await fetchNextAyah(ayah.surahNumber, ayah.ayahNumber);
@@ -860,159 +940,273 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="w-full max-w-4xl space-y-4">
-        <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-4 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
-          <div className="flex items-center justify-between gap-3">
+      <div className="w-full max-w-4xl space-y-5">
+        <section className="rounded-[32px] border border-emerald-900/15 bg-white/55 p-4 shadow-[0_24px_70px_-42px_rgba(6,78,59,0.42)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/50 md:p-5">
+          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="font-semibold">{t("page.practice", locale)}</p>
-              <p className="text-xs text-emerald-900/70 dark:text-emerald-200/80">
-                {t("page.activeSource", locale)}:{" "}
-                {selectedPackageId
-                  ? (packages.find((item) => item.id === selectedPackageId)
-                      ?.title ?? getSurahName(selectedSurahNumber))
-                  : getSurahName(selectedSurahNumber)}
+              <p className="text-sm font-semibold text-emerald-950 dark:text-emerald-100">
+                {t("page.practiceSectionTitle", locale)}
+              </p>
+              <p className="mt-1 text-sm text-emerald-900/70 dark:text-emerald-200/75">
+                {t("page.practiceSectionDescription", locale)}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() =>
-                openSourceSheet(selectedPackageId ? "packages" : "surah")
-              }
-              className="rounded-full border border-emerald-900/15 bg-emerald-900/5 px-3 py-1.5 text-xs font-semibold text-emerald-900 transition-colors hover:bg-emerald-900/10 dark:border-emerald-100/15 dark:bg-emerald-100/5 dark:text-emerald-100 dark:hover:bg-emerald-100/10"
-            >
-              {t("page.chooseSource", locale)}
-            </button>
           </div>
-        </div>
 
-        <MethodologySection locale={locale} />
-
-        {ayahLoading ? (
-          <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-4 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
-            {t("page.loadingAyah", locale)}
-          </div>
-        ) : null}
-        {ayahError ? (
-          <div className="rounded-[28px] border border-rose-700/30 bg-rose-50 p-4 text-sm text-rose-900 shadow-[0_20px_60px_-36px_rgba(190,24,93,0.35)] dark:border-rose-300/25 dark:bg-rose-950/40 dark:text-rose-100">
-            {ayahError}
-            <div className="mt-3">
-              <button
-                type="button"
-                onClick={() => {
-                  void loadAyahFromApi(selectedVerseKey);
-                }}
-                className="rounded-lg bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-800"
-              >
-                {t("common.retry", locale)}
-              </button>
-            </div>
-          </div>
-        ) : null}
-        {ayah ? (
-          <AyahCard
-            ayah={ayah}
-            isSubmitting={isSaving}
-            onRate={handleRate}
-            reviewState={
-              latestProgress
-                ? {
-                    easeFactor: latestProgress.easeFactor,
-                    interval: latestProgress.interval,
-                    repetitions: latestProgress.repetitions,
+          <div className="space-y-4">
+            <div className="rounded-[28px] border border-emerald-900/15 bg-white/70 p-4 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold">{t("page.practice", locale)}</p>
+                  <p className="text-xs text-emerald-900/70 dark:text-emerald-200/80">
+                    {t("page.activeSource", locale)}:{" "}
+                    {selectedPackageId
+                      ? (packages.find((item) => item.id === selectedPackageId)
+                          ?.title ?? getSurahName(selectedSurahNumber))
+                      : getSurahName(selectedSurahNumber)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openSourceSheet(selectedPackageId ? "packages" : "surah")
                   }
-                : null
-            }
-          />
-        ) : null}
-
-        <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-5 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="font-semibold">{t("page.dueReviews", locale)}</p>
-              <p className="text-emerald-900/70 dark:text-emerald-200/80">
-                {isQueueLoading
-                  ? t("page.loadingDueQueue", locale)
-                  : `${visibleDueQueue.length} ${
-                      visibleDueQueue.length === 1
-                        ? t("page.ayahDueSingular", locale)
-                        : t("page.ayahDuePlural", locale)
-                    }`}
-              </p>
-              <p className="mt-1 text-xs text-emerald-800/70 dark:text-emerald-200/70">
-                {t("page.nextReviewAuto", locale)}
-              </p>
-              {selectedPackageId ? (
-                <p className="mt-1 text-xs text-emerald-800/70 dark:text-emerald-200/70">
-                  {t("page.showingPackageDue", locale)}
-                </p>
-              ) : null}
-              {dailyTargetNotice ? (
-                <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
-                  {dailyTargetNotice}
-                </p>
-              ) : null}
+                  className="rounded-full border border-emerald-900/15 bg-emerald-900/5 px-3 py-1.5 text-xs font-semibold text-emerald-900 transition-colors hover:bg-emerald-900/10 dark:border-emerald-100/15 dark:bg-emerald-100/5 dark:text-emerald-100 dark:hover:bg-emerald-100/10"
+                >
+                  {t("page.chooseSource", locale)}
+                </button>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                void loadAyahFromApi(defaultVerseKey);
-              }}
-              className="rounded-lg bg-emerald-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-800"
-            >
-              {t("page.loadFallbackAyah", locale)}
-            </button>
-          </div>
 
-          {visibleDueQueue.length > 0 ? (
-            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-              {visibleDueQueue.map((item) => {
-                const verseKey = toVerseKey(item.surahNumber, item.ayahNumber);
-                const isSelected = selectedVerseKey === verseKey;
+            <MethodologySection locale={locale} />
 
-                return (
+            {ayahLoading ? (
+              <div className="rounded-[28px] border border-emerald-900/15 bg-white/70 p-4 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+                {t("page.loadingAyah", locale)}
+              </div>
+            ) : null}
+            {ayahError ? (
+              <div className="rounded-[28px] border border-rose-700/30 bg-rose-50 p-4 text-sm text-rose-900 shadow-[0_20px_60px_-36px_rgba(190,24,93,0.35)] dark:border-rose-300/25 dark:bg-rose-950/40 dark:text-rose-100">
+                {ayahError}
+                <div className="mt-3">
                   <button
-                    key={item.id}
                     type="button"
                     onClick={() => {
-                      handleStartDueReview(verseKey);
+                      void loadAyahFromApi(selectedVerseKey);
                     }}
-                    className={`whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      isSelected
-                        ? "border-emerald-900 bg-emerald-900 text-white"
-                        : "border-emerald-900/30 text-emerald-900 hover:bg-emerald-900/10 dark:border-emerald-100/20 dark:text-emerald-100 dark:hover:bg-emerald-100/10"
-                    }`}
+                    className="rounded-lg bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-800"
                   >
-                    {verseKey}
+                    {t("common.retry", locale)}
                   </button>
-                );
-              })}
-            </div>
-          ) : null}
-        </div>
-
-        <section className="rounded-[28px] border border-amber-500/20 bg-amber-50/90 p-4 text-sm text-amber-950 shadow-[0_20px_60px_-36px_rgba(217,119,6,0.28)] dark:border-amber-300/20 dark:bg-amber-950/30 dark:text-amber-100">
-          <p className="font-semibold">{t("page.disclaimer", locale)}</p>
-          <p className="mt-1 text-amber-900/80 dark:text-amber-100/80">
-            {t("page.checkMushaf", locale)}
-          </p>
+                </div>
+              </div>
+            ) : null}
+            {ayah ? (
+              <AyahCard
+                ayah={ayah}
+                isSubmitting={isSaving}
+                onRate={handleRate}
+                relearningState={
+                  activeRelearnItem
+                    ? {
+                        attempt: activeRelearnItem.attempts,
+                        queuePosition: activeRelearnIndex + 1,
+                        queueSize: sessionRelearnQueue.length,
+                      }
+                    : null
+                }
+                reviewState={
+                  latestProgress
+                    ? {
+                        easeFactor: latestProgress.easeFactor,
+                        interval: latestProgress.interval,
+                        repetitions: latestProgress.repetitions,
+                      }
+                    : null
+                }
+              />
+            ) : null}
+          </div>
         </section>
-        {latestProgress ? (
-          <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-4 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
-            {t("page.ef", locale)}: {latestProgress.easeFactor} ·{" "}
-            {t("page.interval", locale)}: {latestProgress.interval}d ·{" "}
-            {t("page.reps", locale)}: {latestProgress.repetitions}
+
+        <section className="rounded-[32px] border border-emerald-900/15 bg-white/55 p-4 shadow-[0_24px_70px_-42px_rgba(6,78,59,0.42)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/50 md:p-5">
+          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-emerald-950 dark:text-emerald-100">
+                {t("page.historySectionTitle", locale)}
+              </p>
+              <p className="mt-1 text-sm text-emerald-900/70 dark:text-emerald-200/75">
+                {t("page.historySectionDescription", locale)}
+              </p>
+            </div>
           </div>
-        ) : null}
-        {isSaving ? (
-          <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-4 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
-            {t("page.savingReview", locale)}
+
+          <div className="space-y-4">
+            <section className="grid grid-cols-3 gap-2 md:grid-cols-5 md:gap-3">
+              <div className="rounded-[20px] border border-emerald-900/15 bg-white/65 p-3 text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm md:rounded-[24px] md:p-4 dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+                <p className="text-[10px] font-medium leading-tight text-emerald-900/65 md:text-[11px] dark:text-emerald-200/65">
+                  {t("page.totalReviewedVerses", locale)}
+                </p>
+                <p className="mt-1.5 text-lg font-semibold md:mt-2 md:text-2xl">
+                  {reviewedVerseKeys.size}
+                </p>
+              </div>
+              <div className="rounded-[20px] border border-emerald-900/15 bg-white/65 p-3 text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm md:rounded-[24px] md:p-4 dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+                <p className="text-[10px] font-medium leading-tight text-emerald-900/65 md:text-[11px] dark:text-emerald-200/65">
+                  {t("page.newToday", locale)}
+                </p>
+                <p className="mt-1.5 text-lg font-semibold md:mt-2 md:text-2xl">
+                  {newVerseKeysToday.size}
+                </p>
+              </div>
+              <div className="rounded-[20px] border border-emerald-900/15 bg-white/65 p-3 text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm md:rounded-[24px] md:p-4 dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+                <p className="text-[10px] font-medium leading-tight text-emerald-900/65 md:text-[11px] dark:text-emerald-200/65">
+                  {t("page.dueNow", locale)}
+                </p>
+                <p className="mt-1.5 text-lg font-semibold md:mt-2 md:text-2xl">
+                  {visibleDueQueue.length}
+                </p>
+              </div>
+              <div className="hidden rounded-[24px] border border-emerald-900/15 bg-white/65 p-4 text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm md:block dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+                <p className="text-[11px] font-medium leading-tight text-emerald-900/65 dark:text-emerald-200/65">
+                  {t("page.activePackagesCount", locale)}
+                </p>
+                <p className="mt-2 text-2xl font-semibold">
+                  {activePackagesCount}
+                </p>
+              </div>
+              <div className="hidden rounded-[24px] border border-emerald-900/15 bg-white/65 p-4 text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm md:block dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+                <p className="text-[11px] font-medium leading-tight text-emerald-900/65 dark:text-emerald-200/65">
+                  {t("page.averageEf", locale)}
+                </p>
+                <p className="mt-2 text-2xl font-semibold">
+                  {averageEaseFactor?.toFixed(2) ?? "-"}
+                </p>
+              </div>
+            </section>
+
+            <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-5 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold">
+                    {t("page.dueReviews", locale)}
+                  </p>
+                  <p className="text-emerald-900/70 dark:text-emerald-200/80">
+                    {isQueueLoading
+                      ? t("page.loadingDueQueue", locale)
+                      : `${visibleDueQueue.length} ${
+                          visibleDueQueue.length === 1
+                            ? t("page.ayahDueSingular", locale)
+                            : t("page.ayahDuePlural", locale)
+                        }`}
+                  </p>
+                  <p className="mt-1 text-xs text-emerald-800/70 dark:text-emerald-200/70">
+                    {t("page.nextReviewAuto", locale)}
+                  </p>
+                  <p className="mt-1 hidden text-xs text-emerald-800/70 dark:text-emerald-200/70 sm:block">
+                    {t("page.newToday", locale)}: {newVerseKeysToday.size}
+                  </p>
+                  {sessionRelearnQueue.length > 0 ? (
+                    <>
+                      <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                        {t("page.relearningQueue", locale)}:{" "}
+                        {sessionRelearnQueue.length}{" "}
+                        {sessionRelearnQueue.length === 1
+                          ? t("page.relearningVerseSingular", locale)
+                          : t("page.relearningVersePlural", locale)}
+                      </p>
+                      <p className="mt-1 text-xs text-amber-700/80 dark:text-amber-200/80">
+                        {t("page.relearningPriority", locale)}
+                      </p>
+                    </>
+                  ) : null}
+                  {selectedPackageId ? (
+                    <p className="mt-1 text-xs text-emerald-800/70 dark:text-emerald-200/70">
+                      {t("page.showingPackageDue", locale)}
+                    </p>
+                  ) : null}
+                  {dailyTargetNotice ? (
+                    <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
+                      {dailyTargetNotice}
+                    </p>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void loadAyahFromApi(defaultVerseKey);
+                  }}
+                  className="rounded-lg bg-emerald-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-800"
+                >
+                  {t("page.loadFallbackAyah", locale)}
+                </button>
+              </div>
+
+              {visibleDueQueue.length > 0 ? (
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                  {visibleDueQueue.map((item) => {
+                    const verseKey = toVerseKey(
+                      item.surahNumber,
+                      item.ayahNumber,
+                    );
+                    const isSelected = selectedVerseKey === verseKey;
+
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          handleStartDueReview(verseKey);
+                        }}
+                        className={`whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          isSelected
+                            ? "border-emerald-900 bg-emerald-900 text-white"
+                            : "border-emerald-900/30 text-emerald-900 hover:bg-emerald-900/10 dark:border-emerald-100/20 dark:text-emerald-100 dark:hover:bg-emerald-100/10"
+                        }`}
+                      >
+                        {verseKey}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
+              <section className="rounded-[28px] border border-amber-500/20 bg-amber-50/90 p-4 text-sm text-amber-950 shadow-[0_20px_60px_-36px_rgba(217,119,6,0.28)] dark:border-amber-300/20 dark:bg-amber-950/30 dark:text-amber-100">
+                <p className="font-semibold">{t("page.disclaimer", locale)}</p>
+                <p className="mt-1 text-amber-900/80 dark:text-amber-100/80">
+                  {t("page.checkMushaf", locale)}
+                </p>
+              </section>
+
+              <div className="space-y-4">
+                {latestProgress ? (
+                  <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-4 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+                    <p className="font-semibold">
+                      {t("page.lastReviewSnapshot", locale)}
+                    </p>
+                    <p className="mt-2">
+                      {t("page.ef", locale)}: {latestProgress.easeFactor} ·{" "}
+                      {t("page.interval", locale)}: {latestProgress.interval}d ·{" "}
+                      {t("page.reps", locale)}: {latestProgress.repetitions}
+                    </p>
+                  </div>
+                ) : null}
+                {isSaving ? (
+                  <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-4 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+                    {t("page.savingReview", locale)}
+                  </div>
+                ) : null}
+                {error ? (
+                  <div className="rounded-[28px] border border-rose-700/30 bg-rose-50 p-4 text-sm text-rose-900 shadow-[0_20px_60px_-36px_rgba(190,24,93,0.35)] dark:border-rose-300/25 dark:bg-rose-950/40 dark:text-rose-100">
+                    {error}
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </div>
-        ) : null}
-        {error ? (
-          <div className="rounded-[28px] border border-rose-700/30 bg-rose-50 p-4 text-sm text-rose-900 shadow-[0_20px_60px_-36px_rgba(190,24,93,0.35)] dark:border-rose-300/25 dark:bg-rose-950/40 dark:text-rose-100">
-            {error}
-          </div>
-        ) : null}
+        </section>
       </div>
 
       <OnboardingModal
@@ -1030,6 +1224,14 @@ export default function Home() {
         locale={locale}
         onClose={() => setIsInfoModalOpen(false)}
         onSelectTab={setActiveInfoTab}
+        stats={{
+          activePackagesCount,
+          averageEaseFactor,
+          completedPackagesCount,
+          dueNowCount: visibleDueQueue.length,
+          newTodayCount: newVerseKeysToday.size,
+          totalReviewedVerses: reviewedVerseKeys.size,
+        }}
       />
 
       {isSourceSheetOpen ? (
@@ -1219,6 +1421,22 @@ export default function Home() {
                             {packageProgress.reviewedVerses}/{" "}
                             {packageProgress.totalVerses})
                           </p>
+                          <div
+                            className={`mt-2 h-2 overflow-hidden rounded-full ${
+                              isSelected
+                                ? "bg-white/20"
+                                : "bg-emerald-900/10 dark:bg-emerald-100/10"
+                            }`}
+                          >
+                            <div
+                              className={`h-full rounded-full transition-[width] duration-300 ${
+                                isSelected ? "bg-white" : "bg-emerald-700"
+                              }`}
+                              style={{
+                                width: `${Math.max(4, packageProgress.progressPercent)}%`,
+                              }}
+                            />
+                          </div>
                           <p
                             className={`mt-1 ${
                               isSelected

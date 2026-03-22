@@ -4,7 +4,16 @@ import { useEffect } from "react";
 
 import { t, type AppLocale } from "@/lib/i18n";
 
-export type InfoTab = "source" | "credit" | "legal" | "feedback";
+export type InfoTab = "source" | "credit" | "legal" | "feedback" | "stats";
+
+export interface InfoModalStats {
+  activePackagesCount: number;
+  averageEaseFactor: number | null;
+  completedPackagesCount: number;
+  dueNowCount: number;
+  newTodayCount: number;
+  totalReviewedVerses: number;
+}
 
 type InfoModalProps = {
   activeTab: InfoTab;
@@ -12,10 +21,12 @@ type InfoModalProps = {
   locale: AppLocale;
   onClose: () => void;
   onSelectTab: (tab: InfoTab) => void;
+  stats: InfoModalStats;
 };
 
 const tabs: Array<{ key: InfoTab; labelKey: string }> = [
   { key: "source", labelKey: "page.sourceTab" },
+  { key: "stats", labelKey: "page.statsTab" },
   { key: "credit", labelKey: "page.creditTab" },
   { key: "legal", labelKey: "page.legalTab" },
   { key: "feedback", labelKey: "page.feedbackTab" },
@@ -27,7 +38,41 @@ export default function InfoModal({
   locale,
   onClose,
   onSelectTab,
+  stats,
 }: InfoModalProps) {
+  const statItems = [
+    {
+      key: "totalReviewedVerses",
+      label: t("page.totalReviewedVerses", locale),
+      value: `${stats.totalReviewedVerses}`,
+    },
+    {
+      key: "newToday",
+      label: t("page.newToday", locale),
+      value: `${stats.newTodayCount}`,
+    },
+    {
+      key: "dueNow",
+      label: t("page.dueNow", locale),
+      value: `${stats.dueNowCount}`,
+    },
+    {
+      key: "activePackagesCount",
+      label: t("page.activePackagesCount", locale),
+      value: `${stats.activePackagesCount}`,
+    },
+    {
+      key: "completedPackagesCount",
+      label: t("page.completedPackagesCount", locale),
+      value: `${stats.completedPackagesCount}`,
+    },
+    {
+      key: "averageEf",
+      label: t("page.averageEf", locale),
+      value: stats.averageEaseFactor?.toFixed(2) ?? "-",
+    },
+  ];
+
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -71,9 +116,6 @@ export default function InfoModal({
           <div>
             <p className="text-lg font-semibold">
               {t("page.infoCenter", locale)}
-            </p>
-            <p className="mt-1 text-sm text-emerald-900/70 dark:text-emerald-200/75">
-              {t("page.infoCenterDescription", locale)}
             </p>
           </div>
           <button
@@ -124,6 +166,45 @@ export default function InfoModal({
                 </a>{" "}
                 · {t("page.quranTextSource", locale)}
               </p>
+            </div>
+          ) : null}
+
+          {activeTab === "stats" ? (
+            <div className="space-y-4">
+              <div>
+                <p className="font-semibold">{t("page.statsTitle", locale)}</p>
+                <p className="mt-2 text-emerald-900/80 dark:text-emerald-200/80">
+                  {t("page.statsDescription", locale)}
+                </p>
+              </div>
+
+              <div className="space-y-2 sm:hidden">
+                {statItems.map((item) => (
+                  <div
+                    key={item.key}
+                    className="flex items-center justify-between rounded-2xl border border-emerald-900/10 bg-white/60 px-4 py-3 dark:border-emerald-100/10 dark:bg-emerald-950/40"
+                  >
+                    <p className="text-sm text-emerald-900/80 dark:text-emerald-200/80">
+                      {item.label}
+                    </p>
+                    <p className="text-base font-semibold">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden grid-cols-2 gap-3 sm:grid md:grid-cols-3">
+                {statItems.map((item) => (
+                  <div
+                    key={item.key}
+                    className="rounded-2xl border border-emerald-900/10 bg-white/60 p-3 dark:border-emerald-100/10 dark:bg-emerald-950/40"
+                  >
+                    <p className="text-[11px] font-medium leading-tight text-emerald-900/65 dark:text-emerald-200/65">
+                      {item.label}
+                    </p>
+                    <p className="mt-1 text-lg font-semibold">{item.value}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : null}
 

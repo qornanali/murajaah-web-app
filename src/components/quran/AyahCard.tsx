@@ -20,6 +20,11 @@ interface AyahCardProps {
   ayah: AyahCardData;
   onRate: (rating: SM2Rating) => void;
   isSubmitting?: boolean;
+  relearningState?: {
+    attempt: number;
+    queueSize: number;
+    queuePosition: number;
+  } | null;
   reviewState?: {
     easeFactor: number;
     interval: number;
@@ -58,6 +63,7 @@ export default function AyahCard({
   ayah,
   onRate,
   isSubmitting = false,
+  relearningState = null,
   reviewState,
 }: AyahCardProps) {
   const locale = useLocaleStore((state) => state.locale);
@@ -198,8 +204,17 @@ export default function AyahCard({
       </header>
 
       <div className="mb-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-        <div className="rounded-full border border-emerald-900/10 bg-emerald-900/5 px-3 py-1 text-xs font-medium text-emerald-900/75 dark:border-emerald-200/10 dark:bg-emerald-100/5 dark:text-emerald-100/75">
-          {t("quran.rateWithoutReveal", locale)}
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+          <div className="rounded-full border border-emerald-900/10 bg-emerald-900/5 px-3 py-1 text-xs font-medium text-emerald-900/75 dark:border-emerald-200/10 dark:bg-emerald-100/5 dark:text-emerald-100/75">
+            {t("quran.rateWithoutReveal", locale)}
+          </div>
+          {relearningState ? (
+            <div className="rounded-full border border-amber-600/20 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-800 dark:border-amber-300/20 dark:bg-amber-300/10 dark:text-amber-100">
+              {t("page.relearningBadge", locale)} ·{" "}
+              {t("page.relearningAttempt", locale)} {relearningState.attempt} ·{" "}
+              {relearningState.queuePosition}/{relearningState.queueSize}
+            </div>
+          ) : null}
         </div>
         <div className="flex justify-center">
           <button
@@ -211,6 +226,12 @@ export default function AyahCard({
           </button>
         </div>
       </div>
+
+      {relearningState ? (
+        <p className="mb-5 text-center text-xs font-medium text-amber-800 dark:text-amber-100">
+          {t("page.relearningPriority", locale)}
+        </p>
+      ) : null}
 
       {revealed ? (
         <>

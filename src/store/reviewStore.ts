@@ -13,13 +13,31 @@ interface RateAyahInput {
   rating: SM2Rating;
 }
 
+interface SessionRelearnInput {
+  surahNumber: number;
+  ayahNumber: number;
+  rating: SM2Rating;
+}
+
+export interface SessionRelearnItem {
+  verseKey: string;
+  surahNumber: number;
+  ayahNumber: number;
+  attempts: number;
+  lastRating: SM2Rating;
+}
+
 interface ReviewState {
   latestProgress: AyahProgressRow | null;
   dueQueue: AyahProgressRow[];
+  sessionRelearnQueue: SessionRelearnItem[];
   isQueueLoading: boolean;
   isSaving: boolean;
   error: string | null;
   rateAyah: (input: RateAyahInput) => Promise<AyahProgressRow>;
+  enqueueSessionRelearn: (input: SessionRelearnInput) => SessionRelearnItem[];
+  resolveSessionRelearn: (verseKey: string) => SessionRelearnItem[];
+  clearSessionRelearn: () => void;
   loadDueQueue: (userId: string) => Promise<AyahProgressRow[]>;
   loadAyahProgress: (
     userId: string,
@@ -65,12 +83,63 @@ const newId = () => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
+const toVerseKey = (surahNumber: number, ayahNumber: number) =>
+  `${surahNumber}:${ayahNumber}`;
+
 export const useReviewStore = create<ReviewState>((set) => ({
   latestProgress: null,
   dueQueue: [],
+  sessionRelearnQueue: [],
   isQueueLoading: false,
   isSaving: false,
   error: null,
+
+  enqueueSessionRelearn: ({ surahNumber, ayahNumber, rating }) => {
+    let nextQueue: SessionRelearnItem[] = [];
+
+    set((state) => {
+      const verseKey = toVerseKey(surahNumber, ayahNumber);
+      const existingItem = state.sessionRelearnQueue.find(
+        (item) => item.verseKey === verseKey,
+      );
+      const updatedItem: SessionRelearnItem = {
+        verseKey,
+        surahNumber,
+        ayahNumber,
+        attempts: (existingItem?.attempts ?? 0) + 1,
+        lastRating: rating,
+      };
+
+      nextQueue = [
+        ...state.sessionRelearnQueue.filter(
+          (item) => item.verseKey !== verseKey,
+        ),
+        updatedItem,
+      ];
+
+      return { sessionRelearnQueue: nextQueue };
+    });
+
+    return nextQueue;
+  },
+
+  resolveSessionRelearn: (verseKey) => {
+    let nextQueue: SessionRelearnItem[] = [];
+
+    set((state) => {
+      nextQueue = state.sessionRelearnQueue.filter(
+        (item) => item.verseKey !== verseKey,
+      );
+
+      return { sessionRelearnQueue: nextQueue };
+    });
+
+    return nextQueue;
+  },
+
+  clearSessionRelearn: () => {
+    set({ sessionRelearnQueue: [] });
+  },
 
   loadDueQueue: async (userId) => {
     set({ isQueueLoading: true, error: null });

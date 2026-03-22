@@ -1,25 +1,48 @@
 const GUEST_STORAGE_KEY = "murajaah.guestUserId";
 
+let inMemoryGuestUserId: string | null = null;
+
+function generateGuestUserId(): string {
+  return typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+    ? `guest-${crypto.randomUUID()}`
+    : `guest-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 export function isGuestUserId(value: string | null | undefined): boolean {
   return typeof value === "string" && value.startsWith("guest-");
 }
 
 export function getGuestUserId(): string {
   if (typeof window === "undefined") {
-    return "guest-server";
+    return inMemoryGuestUserId ?? "guest-server";
   }
 
-  const existing = window.localStorage.getItem(GUEST_STORAGE_KEY);
-  if (existing && isGuestUserId(existing)) {
-    return existing;
+  if (inMemoryGuestUserId && isGuestUserId(inMemoryGuestUserId)) {
+    return inMemoryGuestUserId;
   }
 
-  const generated =
-    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? `guest-${crypto.randomUUID()}`
-      : `guest-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  try {
+    const existing = window.localStorage.getItem(GUEST_STORAGE_KEY);
+    if (existing && isGuestUserId(existing)) {
+      inMemoryGuestUserId = existing;
+      return existing;
+    }
+  } catch {
+    if (inMemoryGuestUserId) {
+      return inMemoryGuestUserId;
+    }
+  }
 
-  window.localStorage.setItem(GUEST_STORAGE_KEY, generated);
+  const generated = generateGuestUserId();
+  inMemoryGuestUserId = generated;
+
+  try {
+    window.localStorage.setItem(GUEST_STORAGE_KEY, generated);
+  } catch {
+    return generated;
+  }
+
   return generated;
 }
 
