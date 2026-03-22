@@ -20,6 +20,37 @@ interface VerseResponse {
 const QURAN_PROXY_BASE = "/api/quran";
 const LAST_SURAH_NUMBER = 114;
 
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+function normalizeBaseUrl(value: string | undefined, fallback: string): string {
+  if (!value) {
+    return fallback;
+  }
+
+  const trimmed = value.trim().replace(/\/+$/, "");
+  return trimmed || fallback;
+}
+
+const DEFAULT_RECITATION_ID = parsePositiveInt(
+  process.env.NEXT_PUBLIC_DEFAULT_RECITATION_ID,
+  7,
+);
+const AUDIO_CDN_BASE = normalizeBaseUrl(
+  process.env.NEXT_PUBLIC_AUDIO_CDN_BASE,
+  "https://audio.qurancdn.com",
+);
+
 export function toVerseKey(surahNumber: number, ayahNumber: number): string {
   return `${surahNumber}:${ayahNumber}`;
 }
@@ -52,12 +83,12 @@ function normalizeAudioUrl(url?: string): string | null {
     return `https:${url}`;
   }
 
-  return `https://audio.qurancdn.com/${url.replace(/^\//, "")}`;
+  return `${AUDIO_CDN_BASE}/${url.replace(/^\//, "")}`;
 }
 
 export async function fetchAyahByKey(
   verseKey: string,
-  recitationId = 7,
+  recitationId = DEFAULT_RECITATION_ID,
 ): Promise<QuranApiAyah> {
   const encodedKey = encodeURIComponent(verseKey);
   const endpoint = `${QURAN_PROXY_BASE}/verses/by_key/${encodedKey}?fields=text_uthmani&audio=${recitationId}`;
@@ -93,7 +124,7 @@ export async function fetchAyahByKey(
 export async function fetchNextAyah(
   currentSurahNumber: number,
   currentAyahNumber: number,
-  recitationId = 7,
+  recitationId = DEFAULT_RECITATION_ID,
 ): Promise<QuranApiAyah> {
   let surahNumber = currentSurahNumber;
   let ayahNumber = currentAyahNumber + 1;

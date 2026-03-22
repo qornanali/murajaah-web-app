@@ -6,8 +6,33 @@ import {
   qfApiRequest,
 } from "@/lib/qf/contentApi";
 
-const CHAPTERS_CACHE_CONTROL =
-  "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800";
+function parseNonNegativeInt(
+  value: string | undefined,
+  fallback: number,
+): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+const CACHE_MAX_AGE = parseNonNegativeInt(process.env.QF_CACHE_MAX_AGE, 3600);
+const CACHE_S_MAXAGE_CHAPTERS = parseNonNegativeInt(
+  process.env.QF_CACHE_S_MAXAGE_CHAPTERS,
+  86400,
+);
+const CACHE_SWR_CHAPTERS = parseNonNegativeInt(
+  process.env.QF_CACHE_SWR_CHAPTERS,
+  604800,
+);
+
+const CHAPTERS_CACHE_CONTROL = `public, max-age=${CACHE_MAX_AGE}, s-maxage=${CACHE_S_MAXAGE_CHAPTERS}, stale-while-revalidate=${CACHE_SWR_CHAPTERS}`;
 
 export async function GET() {
   try {
