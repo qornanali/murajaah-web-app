@@ -17,8 +17,7 @@ interface VerseResponse {
   };
 }
 
-const QURAN_API_BASE =
-  process.env.NEXT_PUBLIC_QURAN_API_BASE ?? "https://api.quran.com/api/v4";
+const QURAN_PROXY_BASE = "/api/quran";
 const LAST_SURAH_NUMBER = 114;
 
 export function toVerseKey(surahNumber: number, ayahNumber: number): string {
@@ -61,7 +60,7 @@ export async function fetchAyahByKey(
   recitationId = 7,
 ): Promise<QuranApiAyah> {
   const encodedKey = encodeURIComponent(verseKey);
-  const endpoint = `${QURAN_API_BASE}/verses/by_key/${encodedKey}?fields=text_uthmani&audio=${recitationId}`;
+  const endpoint = `${QURAN_PROXY_BASE}/verses/by_key/${encodedKey}?fields=text_uthmani&audio=${recitationId}`;
 
   const response = await fetch(endpoint, {
     method: "GET",
