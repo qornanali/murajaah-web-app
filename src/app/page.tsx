@@ -8,7 +8,9 @@ import InfoModal, { type InfoTab } from "@/components/ui/InfoModal";
 import OnboardingModal from "@/components/ui/OnboardingModal";
 import AyahCard, { type AyahCardData } from "@/components/quran/AyahCard";
 import MethodologySection from "@/components/sections/MethodologySection";
+import { SurahCompletionCard } from "@/components/surah/SurahCompletionCard";
 import { SurahMasteryCard } from "@/components/surah/SurahMasteryCard";
+import BreakCard from "@/components/break/BreakCard";
 import { toUserError } from "@/lib/errorHandling";
 import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
@@ -144,7 +146,12 @@ export default function Home() {
   const [surahMasteryData, setSurahMasteryData] = useState<
     Record<string, Record<number, SurahMastery>>
   >({});
+  const [completedSurahNumber, setCompletedSurahNumber] = useState<
+    number | null
+  >(null);
 
+  const [sessionNewAyahBaseline, setSessionNewAyahBaseline] = useState(0);
+  const BREAK_THRESHOLD = 10;
   const authenticatedUserId = user?.id;
   const activeUserId = user?.id ?? guestUserId;
   const isGuestMode = !user && Boolean(guestUserId);
@@ -367,7 +374,6 @@ export default function Home() {
 
         return;
       }
-
       if (!authenticatedUserId) {
         return;
       }
@@ -460,6 +466,7 @@ export default function Home() {
 
       setReviewedVerseKeys(reviewed);
       setNewVerseKeysToday(newToday);
+      setSessionNewAyahBaseline(newToday.size);
       setAverageEaseFactor(
         allRows.length > 0
           ? Number(
@@ -524,6 +531,24 @@ export default function Home() {
 
     void calculateAllMastery();
   }, [activeUserId, packages, calculateSurahMastery]);
+
+  useEffect(() => {
+    if (!ayah || !selectedPackageId || !surahMasteryData[selectedPackageId]) {
+      setCompletedSurahNumber(null);
+      return;
+    }
+
+    const surahMastery = surahMasteryData[selectedPackageId][ayah.surahNumber];
+    if (
+      surahMastery &&
+      surahMastery.forwardMastery &&
+      surahMastery.randomMastery
+    ) {
+      setCompletedSurahNumber(ayah.surahNumber);
+    } else {
+      setCompletedSurahNumber(null);
+    }
+  }, [ayah, selectedPackageId, surahMasteryData]);
 
   const handleRate = async (rating: SM2Rating) => {
     if (!activeUserId || !ayah) {
@@ -697,6 +722,29 @@ export default function Home() {
     }
   };
 
+  const handleSurahCompletionRest = () => {
+    setCompletedSurahNumber(null);
+    setAyah(null);
+  };
+
+  const handleSurahCompletionNext = async () => {
+    if (!activeUserId || !selectedPackageId || !ayah) {
+      return;
+    }
+
+    setCompletedSurahNumber(null);
+
+    const activeSurah = ayah.surahNumber;
+    const nextSurahNumber = activeSurah + 1;
+
+    if (nextSurahNumber > 114) {
+      void loadAyahFromApi(defaultVerseKey);
+      return;
+    }
+
+    void loadAyahFromApi(`${nextSurahNumber}:1`);
+  };
+
   const openSourceSheet = (tab: "surah" | "packages") => {
     setSourceSheetTab(tab);
     setIsSourceSheetOpen(true);
@@ -797,6 +845,18 @@ export default function Home() {
 
     return `${first}${maskedMiddle}${last}@${domain}`;
   };
+
+  const sessionNewAyahsCleared =
+    newVerseKeysToday.size - sessionNewAyahBaseline;
+  const shouldShowBreak = sessionNewAyahsCleared >= BREAK_THRESHOLD;
+  const hasCompletedSurah =
+    Boolean(completedSurahNumber) &&
+    Boolean(selectedPackageId) &&
+    Boolean(
+      selectedPackageId &&
+      completedSurahNumber &&
+      surahMasteryData[selectedPackageId]?.[completedSurahNumber],
+    );
 
   if (!guestUserId && !user && (isLoading || !isInitialized)) {
     return (
@@ -1043,7 +1103,23 @@ export default function Home() {
                 </div>
               </div>
             ) : null}
-            {ayah ? (
+            {hasCompletedSurah && completedSurahNumber && selectedPackageId ? (
+              <SurahCompletionCard
+                mastery={
+                  surahMasteryData[selectedPackageId][completedSurahNumber]
+                }
+                onRest={handleSurahCompletionRest}
+                onNextSurah={handleSurahCompletionNext}
+              />
+            ) : shouldShowBreak ? (
+              <BreakCard
+                locale={locale}
+                clearCount={sessionNewAyahsCleared}
+                onResume={() => {
+                  setSessionNewAyahBaseline(newVerseKeysToday.size);
+                }}
+              />
+            ) : ayah ? (
               <AyahCard
                 ayah={ayah}
                 isSubmitting={isSaving}
