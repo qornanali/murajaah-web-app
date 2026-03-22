@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { t } from "@/lib/i18n";
 import { getSurahName } from "@/lib/quranMeta";
@@ -19,6 +19,7 @@ export interface AyahCardData {
 interface AyahCardProps {
   ayah: AyahCardData;
   onRate: (rating: SM2Rating) => void;
+  isSubmitting?: boolean;
   reviewState?: {
     easeFactor: number;
     interval: number;
@@ -53,10 +54,17 @@ const ratingButtons: Array<{
   },
 ];
 
-export default function AyahCard({ ayah, onRate, reviewState }: AyahCardProps) {
+export default function AyahCard({
+  ayah,
+  onRate,
+  isSubmitting = false,
+  reviewState,
+}: AyahCardProps) {
   const locale = useLocaleStore((state) => state.locale);
   const [revealed, setRevealed] = useState(false);
   const [visibleChunkCount, setVisibleChunkCount] = useState(1);
+  const [activeRating, setActiveRating] = useState<SM2Rating | null>(null);
+  const feedbackTimerRef = useRef<number | null>(null);
   const surahName = getSurahName(ayah.surahNumber);
 
   const chunks = useMemo(
@@ -71,7 +79,16 @@ export default function AyahCard({ ayah, onRate, reviewState }: AyahCardProps) {
   useEffect(() => {
     setRevealed(false);
     setVisibleChunkCount(1);
+    setActiveRating(null);
   }, [ayah.surahNumber, ayah.ayahNumber]);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimerRef.current !== null) {
+        window.clearTimeout(feedbackTimerRef.current);
+      }
+    };
+  }, []);
 
   const previewCopy = useMemo(
     () =>
@@ -136,8 +153,39 @@ export default function AyahCard({ ayah, onRate, reviewState }: AyahCardProps) {
     });
   };
 
+  const cardFeedbackClass =
+    activeRating === 1
+      ? "motion-safe:animate-rating-card-again"
+      : activeRating === 2
+        ? "motion-safe:animate-rating-card-hard"
+        : activeRating === 3
+          ? "motion-safe:animate-rating-card-good"
+          : activeRating === 4
+            ? "motion-safe:animate-rating-card-easy"
+            : "";
+
+  const handleRateClick = (rating: SM2Rating) => {
+    if (isSubmitting) {
+      return;
+    }
+
+    if (feedbackTimerRef.current !== null) {
+      window.clearTimeout(feedbackTimerRef.current);
+    }
+
+    setActiveRating(rating);
+    feedbackTimerRef.current = window.setTimeout(() => {
+      setActiveRating(null);
+      feedbackTimerRef.current = null;
+    }, 560);
+
+    onRate(rating);
+  };
+
   return (
-    <article className="w-full max-w-3xl rounded-[28px] border border-emerald-900/15 bg-[#FDFCF0]/90 p-6 shadow-[0_20px_60px_-32px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/65">
+    <article
+      className={`w-full max-w-3xl rounded-[28px] border border-emerald-900/15 bg-[#FDFCF0]/90 p-6 shadow-[0_20px_60px_-32px_rgba(6,78,59,0.45)] backdrop-blur-sm transition-shadow dark:border-emerald-200/15 dark:bg-emerald-950/65 ${cardFeedbackClass}`}
+    >
       <header className="mb-5 text-center">
         <p className="text-sm font-medium tracking-wide text-emerald-900/80 dark:text-emerald-200/80">
           {t("quran.surah", locale)} {ayah.surahNumber} ·{" "}
@@ -225,8 +273,13 @@ export default function AyahCard({ ayah, onRate, reviewState }: AyahCardProps) {
           >
             <button
               type="button"
-              onClick={() => onRate(button.value)}
-              className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors ${button.classes}`}
+              disabled={isSubmitting}
+              onClick={() => handleRateClick(button.value)}
+              className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 motion-reduce:transition-none ${button.classes} ${
+                activeRating === button.value
+                  ? "motion-safe:animate-rating-press ring-2 ring-white/50 ring-offset-2 ring-offset-transparent"
+                  : ""
+              } disabled:cursor-not-allowed disabled:opacity-70`}
             >
               {t(button.labelKey, locale)}
             </button>

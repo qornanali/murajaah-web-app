@@ -911,6 +911,7 @@ export default function Home() {
         {ayah ? (
           <AyahCard
             ayah={ayah}
+            isSubmitting={isSaving}
             onRate={handleRate}
             reviewState={
               latestProgress
