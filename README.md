@@ -68,8 +68,26 @@ Set values in `.env.local`:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
-NEXT_PUBLIC_QURAN_API_BASE=https://api.quran.com/api/v4
+
+# Quran Foundation environment selection
+# Allowed values: prelive | production
+QF_ENV=prelive
+
+# Optional explicit base URL overrides (server-side only)
+# If set, these take precedence over QF_ENV mapping.
+QF_API_BASE_URL=https://apis-prelive.quran.foundation
+QF_AUTH_BASE_URL=https://prelive-oauth2.quran.foundation
+
+# Quran Foundation OAuth2 client credentials (server-side only)
+QF_CLIENT_ID=your-qf-client-id
+QF_CLIENT_SECRET=your-qf-client-secret
 ```
+
+Notes:
+
+- `NEXT_PUBLIC_*` variables are exposed to the browser.
+- `QF_CLIENT_SECRET` must remain server-side only.
+- You can copy values directly from `.env.example` and replace placeholders.
 
 ## 4) Apply Database Migrations (Supabase)
 
@@ -82,6 +100,8 @@ Recommended approach:
 - Use your normal migration workflow (Supabase CLI, SQL Editor, or CI/CD pipeline).
 
 This keeps schema, constraints, and RLS policies aligned with the app code.
+
+Tip: `SETUP.md` contains a shorter onboarding version of these setup steps.
 
 ## 5) Run Locally
 
@@ -103,6 +123,12 @@ npm start
 npm run lint
 ```
 
+If local build fails, verify:
+
+- all required environment variables are set in `.env.local`
+- Supabase migrations are applied
+- your Node/npm versions match prerequisites
+
 ## Memorization Methodology
 
 Murajaah flow in this app:
@@ -118,7 +144,7 @@ Inspired by Anki's spaced-repetition workflow:
 
 ## Data Source and Disclaimer
 
-- Main Quran text/audio source: https://quran.com
+- Main Quran text/audio source: Quran Foundation APIs
 - Learning package metadata source: Supabase (`memorization_packages`)
 - Always verify recitation and text with your mushaf.
 
