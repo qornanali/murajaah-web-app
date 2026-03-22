@@ -8,6 +8,7 @@ import InfoModal, { type InfoTab } from "@/components/ui/InfoModal";
 import OnboardingModal from "@/components/ui/OnboardingModal";
 import AyahCard, { type AyahCardData } from "@/components/quran/AyahCard";
 import MethodologySection from "@/components/sections/MethodologySection";
+import { SurahMasteryCard } from "@/components/surah/SurahMasteryCard";
 import { toUserError } from "@/lib/errorHandling";
 import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
@@ -33,7 +34,7 @@ import { getSurahName } from "@/lib/quranMeta";
 import { type SM2Rating } from "@/lib/srs";
 import { useAuthStore } from "@/store/authStore";
 import { useLocaleStore } from "@/store/localeStore";
-import { useReviewStore } from "@/store/reviewStore";
+import { useReviewStore, type SurahMastery } from "@/store/reviewStore";
 import { useThemeStore } from "@/store/themeStore";
 import { useUIStore } from "@/store/uiStore";
 
@@ -88,6 +89,9 @@ export default function Home() {
   );
   const loadDueQueue = useReviewStore((state) => state.loadDueQueue);
   const loadAyahProgress = useReviewStore((state) => state.loadAyahProgress);
+  const calculateSurahMastery = useReviewStore(
+    (state) => state.calculateSurahMastery,
+  );
 
   const hasSeenOnboardingModal = useUIStore(
     (state) => state.hasSeenOnboardingModal,
@@ -137,6 +141,9 @@ export default function Home() {
   const [packageSearch, setPackageSearch] = useState("");
   const [packagePage, setPackagePage] = useState(1);
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
+  const [surahMasteryData, setSurahMasteryData] = useState<
+    Record<string, Record<number, SurahMastery>>
+  >({});
 
   const authenticatedUserId = user?.id;
   const activeUserId = user?.id ?? guestUserId;
@@ -479,6 +486,44 @@ export default function Home() {
       };
     }
   }, [activeUserId, ayah, loadAyahProgress, loadDueQueue]);
+
+  useEffect(() => {
+    if (!activeUserId || packages.length === 0) {
+      return;
+    }
+
+    const calculateAllMastery = async () => {
+      const masteryByPackageId: Record<
+        string,
+        Record<number, SurahMastery>
+      > = {};
+
+      for (const pkg of packages) {
+        const verseKeys = getPackageVerseKeys(pkg);
+        const surahSet = new Set<number>();
+
+        verseKeys.forEach((key) => {
+          const [surah] = key.split(":").map(Number);
+          surahSet.add(surah);
+        });
+
+        masteryByPackageId[pkg.id] = {};
+
+        for (const surahNumber of surahSet) {
+          const mastery = await calculateSurahMastery(
+            activeUserId,
+            surahNumber,
+            300,
+          );
+          masteryByPackageId[pkg.id][surahNumber] = mastery;
+        }
+      }
+
+      setSurahMasteryData(masteryByPackageId);
+    };
+
+    void calculateAllMastery();
+  }, [activeUserId, packages, calculateSurahMastery]);
 
   const handleRate = async (rating: SM2Rating) => {
     if (!activeUserId || !ayah) {
@@ -947,9 +992,6 @@ export default function Home() {
               <p className="text-sm font-semibold text-emerald-950 dark:text-emerald-100">
                 {t("page.practiceSectionTitle", locale)}
               </p>
-              <p className="mt-1 text-sm text-emerald-900/70 dark:text-emerald-200/75">
-                {t("page.practiceSectionDescription", locale)}
-              </p>
             </div>
           </div>
 
@@ -1035,9 +1077,6 @@ export default function Home() {
               <p className="text-sm font-semibold text-emerald-950 dark:text-emerald-100">
                 {t("page.historySectionTitle", locale)}
               </p>
-              <p className="mt-1 text-sm text-emerald-900/70 dark:text-emerald-200/75">
-                {t("page.historySectionDescription", locale)}
-              </p>
             </div>
           </div>
 
@@ -1084,6 +1123,26 @@ export default function Home() {
                 </p>
               </div>
             </section>
+
+            {selectedPackageId &&
+            surahMasteryData[selectedPackageId] &&
+            Object.keys(surahMasteryData[selectedPackageId]).length > 0 ? (
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-emerald-950 dark:text-emerald-100">
+                  {t("page.surahMasteryTitle", locale)}
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {Object.values(surahMasteryData[selectedPackageId]).map(
+                    (mastery) => (
+                      <SurahMasteryCard
+                        key={mastery.surahNumber}
+                        mastery={mastery}
+                      />
+                    ),
+                  )}
+                </div>
+              </div>
+            ) : null}
 
             <div className="rounded-[28px] border border-emerald-900/15 bg-white/65 p-5 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
               <div className="flex flex-wrap items-center justify-between gap-3">
