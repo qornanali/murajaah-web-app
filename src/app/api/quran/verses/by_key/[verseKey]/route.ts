@@ -6,6 +6,9 @@ import {
   qfApiRequest,
 } from "@/lib/qf/contentApi";
 
+const VERSE_CACHE_CONTROL =
+  "public, max-age=3600, s-maxage=2592000, stale-while-revalidate=31536000";
+
 export async function GET(
   request: NextRequest,
   context: { params: { verseKey: string } },
@@ -33,7 +36,12 @@ export async function GET(
     }
 
     const payload = await response.json();
-    return NextResponse.json(payload, { status: 200 });
+    return NextResponse.json(payload, {
+      status: 200,
+      headers: {
+        "Cache-Control": VERSE_CACHE_CONTROL,
+      },
+    });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unexpected server error";

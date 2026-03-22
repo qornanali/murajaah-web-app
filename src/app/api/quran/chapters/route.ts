@@ -6,6 +6,9 @@ import {
   qfApiRequest,
 } from "@/lib/qf/contentApi";
 
+const CHAPTERS_CACHE_CONTROL =
+  "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800";
+
 export async function GET() {
   try {
     const response = await qfApiRequest("/chapters", { method: "GET" });
@@ -22,7 +25,12 @@ export async function GET() {
     }
 
     const payload = await response.json();
-    return NextResponse.json(payload, { status: 200 });
+    return NextResponse.json(payload, {
+      status: 200,
+      headers: {
+        "Cache-Control": CHAPTERS_CACHE_CONTROL,
+      },
+    });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unexpected server error";
