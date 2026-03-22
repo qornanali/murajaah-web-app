@@ -13,6 +13,7 @@ import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
 import {
   fetchPublishedMemorizationPackages,
+  setUserPackageDailyNewTarget,
   fetchUserPackageEnrollments,
   setUserPackageEnrollmentStatus,
 } from "@/lib/packages/api";
@@ -21,6 +22,11 @@ import {
   type MemorizationPackage,
   type PackageEnrollmentStatus,
 } from "@/lib/packages/types";
+import {
+  getPackageProgressSnapshot,
+  getPackageVerseKeys,
+} from "@/lib/packages/progress";
+import { murajaahDB } from "@/lib/offline/db";
 import { startBackgroundSync } from "@/lib/offline/sync";
 import { fetchAyahByKey, fetchNextAyah, toVerseKey } from "@/lib/quranApi";
 import { getSurahName } from "@/lib/quranMeta";
@@ -35,6 +41,8 @@ const defaultVerseKey = "1:1";
 const TOTAL_SURAHS = 114;
 const PACKAGE_PAGE_SIZE = 6;
 const GUEST_PACKAGE_STATUS_PREFIX = "murajaah.guest.packageStatus";
+const GUEST_PACKAGE_TARGET_PREFIX = "murajaah.guest.packageTarget";
+const DEFAULT_DAILY_NEW_TARGET = 3;
 
 const surahOptions = Array.from({ length: TOTAL_SURAHS }, (_, index) => {
   const surahNumber = index + 1;
@@ -89,6 +97,18 @@ export default function Home() {
   const [packageStatusById, setPackageStatusById] = useState<
     Record<string, PackageEnrollmentStatus>
   >({});
+  const [packageDailyTargetById, setPackageDailyTargetById] = useState<
+    Record<string, number>
+  >({});
+  const [reviewedVerseKeys, setReviewedVerseKeys] = useState<Set<string>>(
+    new Set(),
+  );
+  const [newVerseKeysToday, setNewVerseKeysToday] = useState<Set<string>>(
+    new Set(),
+  );
+  const [dailyTargetNotice, setDailyTargetNotice] = useState<string | null>(
+    null,
+  );
   const [packageActionId, setPackageActionId] = useState<string | null>(null);
   const [selectedSurahNumber, setSelectedSurahNumber] = useState(1);
   const [guestUserId, setGuestUserId] = useState<string | null>(null);
@@ -144,6 +164,45 @@ export default function Home() {
     const start = (packagePage - 1) * PACKAGE_PAGE_SIZE;
     return filteredPackages.slice(start, start + PACKAGE_PAGE_SIZE);
   }, [filteredPackages, packagePage]);
+
+  const packageVerseKeysById = useMemo(() => {
+    const map: Record<string, Set<string>> = {};
+
+    packages.forEach((item) => {
+      map[item.id] = getPackageVerseKeys(item);
+    });
+
+    return map;
+  }, [packages]);
+
+  const packageProgressById = useMemo(() => {
+    const map: Record<
+      string,
+      { totalVerses: number; reviewedVerses: number; progressPercent: number }
+    > = {};
+
+    packages.forEach((item) => {
+      map[item.id] = getPackageProgressSnapshot(item, reviewedVerseKeys);
+    });
+
+    return map;
+  }, [packages, reviewedVerseKeys]);
+
+  const visibleDueQueue = useMemo(() => {
+    if (!selectedPackageId) {
+      return dueQueue;
+    }
+
+    const packageVerseKeys = packageVerseKeysById[selectedPackageId];
+
+    if (!packageVerseKeys || packageVerseKeys.size === 0) {
+      return dueQueue;
+    }
+
+    return dueQueue.filter((item) =>
+      packageVerseKeys.has(toVerseKey(item.surahNumber, item.ayahNumber)),
+    );
+  }, [dueQueue, selectedPackageId, packageVerseKeysById]);
 
   const loadAyahFromApi = async (verseKey: string) => {
     setAyahLoading(true);
@@ -214,22 +273,45 @@ export default function Home() {
       }
 
       if (!authenticatedUserId && guestUserId) {
-        const storageKey = `${GUEST_PACKAGE_STATUS_PREFIX}.${guestUserId}`;
-        const raw = window.localStorage.getItem(storageKey);
+        const statusStorageKey = `${GUEST_PACKAGE_STATUS_PREFIX}.${guestUserId}`;
+        const targetStorageKey = `${GUEST_PACKAGE_TARGET_PREFIX}.${guestUserId}`;
+        const rawStatus = window.localStorage.getItem(statusStorageKey);
+        const rawTarget = window.localStorage.getItem(targetStorageKey);
 
-        if (!raw) {
+        if (!rawStatus) {
           setPackageStatusById({});
-          return;
+          setPackageDailyTargetById({});
+        } else {
+          try {
+            const parsed = JSON.parse(rawStatus) as Record<
+              string,
+              PackageEnrollmentStatus
+            >;
+            setPackageStatusById(parsed);
+            setPackageDailyTargetById(
+              Object.keys(parsed).reduce<Record<string, number>>((acc, id) => {
+                acc[id] = DEFAULT_DAILY_NEW_TARGET;
+                return acc;
+              }, {}),
+            );
+          } catch {
+            setPackageStatusById({});
+            setPackageDailyTargetById({});
+          }
         }
 
         try {
-          const parsed = JSON.parse(raw) as Record<
-            string,
-            PackageEnrollmentStatus
-          >;
-          setPackageStatusById(parsed);
+          if (!rawTarget) {
+            return;
+          }
+
+          const parsedTargets = JSON.parse(rawTarget) as Record<string, number>;
+          setPackageDailyTargetById((previous) => ({
+            ...previous,
+            ...parsedTargets,
+          }));
         } catch {
-          setPackageStatusById({});
+          setPackageDailyTargetById({});
         }
 
         return;
@@ -242,7 +324,23 @@ export default function Home() {
       try {
         const enrollmentMap =
           await fetchUserPackageEnrollments(authenticatedUserId);
-        setPackageStatusById(enrollmentMap);
+        setPackageStatusById(
+          Object.entries(enrollmentMap).reduce<
+            Record<string, PackageEnrollmentStatus>
+          >((acc, [packageId, enrollment]) => {
+            acc[packageId] = enrollment.status;
+            return acc;
+          }, {}),
+        );
+        setPackageDailyTargetById(
+          Object.entries(enrollmentMap).reduce<Record<string, number>>(
+            (acc, [packageId, enrollment]) => {
+              acc[packageId] = enrollment.dailyNewTarget;
+              return acc;
+            },
+            {},
+          ),
+        );
       } catch (loadError) {
         const message = toUserError("PKG-ENROLL-001", loadError);
         setPackagesError(message);
@@ -257,9 +355,63 @@ export default function Home() {
       return;
     }
 
-    const storageKey = `${GUEST_PACKAGE_STATUS_PREFIX}.${guestUserId}`;
-    window.localStorage.setItem(storageKey, JSON.stringify(packageStatusById));
+    const statusStorageKey = `${GUEST_PACKAGE_STATUS_PREFIX}.${guestUserId}`;
+    window.localStorage.setItem(
+      statusStorageKey,
+      JSON.stringify(packageStatusById),
+    );
   }, [isGuestMode, guestUserId, packageStatusById]);
+
+  useEffect(() => {
+    if (!isGuestMode || !guestUserId) {
+      return;
+    }
+
+    const targetStorageKey = `${GUEST_PACKAGE_TARGET_PREFIX}.${guestUserId}`;
+    window.localStorage.setItem(
+      targetStorageKey,
+      JSON.stringify(packageDailyTargetById),
+    );
+  }, [isGuestMode, guestUserId, packageDailyTargetById]);
+
+  useEffect(() => {
+    const loadProgressState = async () => {
+      if (!activeUserId) {
+        setReviewedVerseKeys(new Set());
+        setNewVerseKeysToday(new Set());
+        return;
+      }
+
+      const now = new Date();
+      const startOfDay = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+      ).toISOString();
+
+      const allRows = await murajaahDB.ayahProgress
+        .toCollection()
+        .filter((row) => row.userId === activeUserId)
+        .toArray();
+
+      const reviewed = new Set<string>();
+      const newToday = new Set<string>();
+
+      allRows.forEach((row) => {
+        const verseKey = toVerseKey(row.surahNumber, row.ayahNumber);
+        reviewed.add(verseKey);
+
+        if (row.updatedAt >= startOfDay && row.repetitions <= 1) {
+          newToday.add(verseKey);
+        }
+      });
+
+      setReviewedVerseKeys(reviewed);
+      setNewVerseKeysToday(newToday);
+    };
+
+    void loadProgressState();
+  }, [activeUserId]);
 
   useEffect(() => {
     if (activeUserId && ayah) {
@@ -278,6 +430,22 @@ export default function Home() {
       return;
     }
 
+    const currentVerseKey = toVerseKey(ayah.surahNumber, ayah.ayahNumber);
+    const activePackageId = selectedPackageId;
+    const activePackageStatus = activePackageId
+      ? packageStatusById[activePackageId]
+      : undefined;
+    const activePackageTarget = activePackageId
+      ? (packageDailyTargetById[activePackageId] ?? DEFAULT_DAILY_NEW_TARGET)
+      : null;
+    const activePackageVerseKeys = activePackageId
+      ? packageVerseKeysById[activePackageId]
+      : undefined;
+    const isCurrentVerseInsideActivePackage = Boolean(
+      activePackageVerseKeys?.has(currentVerseKey),
+    );
+    const isCurrentVerseNewForUser = !reviewedVerseKeys.has(currentVerseKey);
+
     await rateAyah({
       userId: activeUserId,
       surahNumber: ayah.surahNumber,
@@ -285,7 +453,43 @@ export default function Home() {
       rating,
     });
 
+    const nextReviewedVerseKeys = new Set(reviewedVerseKeys);
+    nextReviewedVerseKeys.add(currentVerseKey);
+    setReviewedVerseKeys(nextReviewedVerseKeys);
+
+    const nextNewVerseKeysToday = new Set(newVerseKeysToday);
+    if (isCurrentVerseNewForUser) {
+      nextNewVerseKeysToday.add(currentVerseKey);
+      setNewVerseKeysToday(nextNewVerseKeysToday);
+    }
+
     void loadDueQueue(activeUserId);
+
+    if (
+      activePackageId &&
+      activePackageStatus === "active" &&
+      activePackageTarget !== null &&
+      activePackageVerseKeys &&
+      isCurrentVerseInsideActivePackage &&
+      isCurrentVerseNewForUser
+    ) {
+      let newVersesTodayCount = 0;
+
+      activePackageVerseKeys.forEach((verseKey) => {
+        if (nextNewVerseKeysToday.has(verseKey)) {
+          newVersesTodayCount += 1;
+        }
+      });
+
+      if (newVersesTodayCount >= activePackageTarget) {
+        setDailyTargetNotice(
+          `${t("page.dailyLimitReached", locale)} ${activePackageTarget}.`,
+        );
+        return;
+      }
+    }
+
+    setDailyTargetNotice(null);
 
     try {
       const nextAyah = await fetchNextAyah(ayah.surahNumber, ayah.ayahNumber);
@@ -316,12 +520,56 @@ export default function Home() {
     }
 
     setSelectedPackageId(packageId);
+    setDailyTargetNotice(null);
     void loadAyahFromApi(nextPackage.starterVerseKey);
   };
 
   const handleOpenSurah = () => {
     setSelectedPackageId(null);
+    setDailyTargetNotice(null);
     void loadAyahFromApi(toVerseKey(selectedSurahNumber, 1));
+  };
+
+  const updatePackageDailyTarget = async (
+    packageId: string,
+    direction: "decrease" | "increase",
+  ) => {
+    const currentTarget =
+      packageDailyTargetById[packageId] ?? DEFAULT_DAILY_NEW_TARGET;
+    const nextTarget =
+      direction === "decrease"
+        ? Math.max(0, currentTarget - 1)
+        : Math.min(50, currentTarget + 1);
+
+    if (nextTarget === currentTarget) {
+      return;
+    }
+
+    setPackagesError(null);
+    setPackageDailyTargetById((prev) => ({
+      ...prev,
+      [packageId]: nextTarget,
+    }));
+
+    if (!user?.id) {
+      return;
+    }
+
+    setPackageActionId(packageId);
+
+    try {
+      await setUserPackageDailyNewTarget(user.id, packageId, nextTarget);
+    } catch (updateError) {
+      setPackageDailyTargetById((prev) => ({
+        ...prev,
+        [packageId]: currentTarget,
+      }));
+
+      const message = toUserError("PKG-UPDATE-001", updateError);
+      setPackagesError(message);
+    } finally {
+      setPackageActionId(null);
+    }
   };
 
   const openSourceSheet = (tab: "surah" | "packages") => {
@@ -348,6 +596,10 @@ export default function Home() {
       setPackageStatusById((prev) => ({
         ...prev,
         [packageId]: status,
+      }));
+      setPackageDailyTargetById((prev) => ({
+        ...prev,
+        [packageId]: prev[packageId] ?? DEFAULT_DAILY_NEW_TARGET,
       }));
 
       if (status === "active") {
@@ -679,8 +931,8 @@ export default function Home() {
               <p className="text-emerald-900/70 dark:text-emerald-200/80">
                 {isQueueLoading
                   ? t("page.loadingDueQueue", locale)
-                  : `${dueQueue.length} ${
-                      dueQueue.length === 1
+                  : `${visibleDueQueue.length} ${
+                      visibleDueQueue.length === 1
                         ? t("page.ayahDueSingular", locale)
                         : t("page.ayahDuePlural", locale)
                     }`}
@@ -688,6 +940,16 @@ export default function Home() {
               <p className="mt-1 text-xs text-emerald-800/70 dark:text-emerald-200/70">
                 {t("page.nextReviewAuto", locale)}
               </p>
+              {selectedPackageId ? (
+                <p className="mt-1 text-xs text-emerald-800/70 dark:text-emerald-200/70">
+                  {t("page.showingPackageDue", locale)}
+                </p>
+              ) : null}
+              {dailyTargetNotice ? (
+                <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
+                  {dailyTargetNotice}
+                </p>
+              ) : null}
             </div>
             <button
               type="button"
@@ -700,9 +962,9 @@ export default function Home() {
             </button>
           </div>
 
-          {dueQueue.length > 0 ? (
+          {visibleDueQueue.length > 0 ? (
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-              {dueQueue.map((item) => {
+              {visibleDueQueue.map((item) => {
                 const verseKey = toVerseKey(item.surahNumber, item.ayahNumber);
                 const isSelected = selectedVerseKey === verseKey;
 
@@ -898,6 +1160,14 @@ export default function Home() {
                   {paginatedPackages.map((item) => {
                     const isSelected = item.id === selectedPackageId;
                     const status = packageStatusById[item.id];
+                    const dailyTarget =
+                      packageDailyTargetById[item.id] ??
+                      DEFAULT_DAILY_NEW_TARGET;
+                    const packageProgress = packageProgressById[item.id] ?? {
+                      totalVerses: 0,
+                      reviewedVerses: 0,
+                      progressPercent: 0,
+                    };
                     const isBusy = packageActionId === item.id;
 
                     return (
@@ -936,9 +1206,77 @@ export default function Home() {
                           >
                             {t("page.status", locale)}: {statusLabel(status)}
                           </p>
+                          <p
+                            className={`mt-1 ${
+                              isSelected
+                                ? "text-emerald-50/90"
+                                : "text-emerald-900/70"
+                            }`}
+                          >
+                            {t("page.progress", locale)}:{" "}
+                            {packageProgress.progressPercent}% ({" "}
+                            {packageProgress.reviewedVerses}/{" "}
+                            {packageProgress.totalVerses})
+                          </p>
+                          <p
+                            className={`mt-1 ${
+                              isSelected
+                                ? "text-emerald-50/90"
+                                : "text-emerald-900/70"
+                            }`}
+                          >
+                            {t("page.dailyNewTarget", locale)}: {dailyTarget}
+                          </p>
                         </button>
 
                         <div className="mt-2 flex flex-wrap gap-2">
+                          <div className="flex items-center gap-1 rounded-md border border-emerald-900/20 px-1.5 py-1 dark:border-emerald-100/20">
+                            <button
+                              type="button"
+                              disabled={isBusy || dailyTarget <= 0}
+                              aria-label={t("page.targetDecrease", locale)}
+                              onClick={() => {
+                                void updatePackageDailyTarget(
+                                  item.id,
+                                  "decrease",
+                                );
+                              }}
+                              className={`rounded px-1.5 py-0.5 text-[11px] font-semibold transition-colors ${
+                                isSelected
+                                  ? "bg-white/10 text-white hover:bg-white/20"
+                                  : "bg-emerald-900/15 text-emerald-900 hover:bg-emerald-900/25"
+                              } disabled:cursor-not-allowed disabled:opacity-50`}
+                            >
+                              -
+                            </button>
+                            <span
+                              className={`min-w-8 text-center text-[11px] font-semibold ${
+                                isSelected
+                                  ? "text-emerald-50"
+                                  : "text-emerald-900 dark:text-emerald-100"
+                              }`}
+                            >
+                              {dailyTarget}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={isBusy || dailyTarget >= 50}
+                              aria-label={t("page.targetIncrease", locale)}
+                              onClick={() => {
+                                void updatePackageDailyTarget(
+                                  item.id,
+                                  "increase",
+                                );
+                              }}
+                              className={`rounded px-1.5 py-0.5 text-[11px] font-semibold transition-colors ${
+                                isSelected
+                                  ? "bg-white/10 text-white hover:bg-white/20"
+                                  : "bg-emerald-900/15 text-emerald-900 hover:bg-emerald-900/25"
+                              } disabled:cursor-not-allowed disabled:opacity-50`}
+                            >
+                              +
+                            </button>
+                          </div>
                           <button
                             type="button"
                             disabled={isBusy}

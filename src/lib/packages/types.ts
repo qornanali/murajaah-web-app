@@ -31,3 +31,8 @@ export interface UserMemorizationPackageRecord {
   status: PackageEnrollmentStatus;
   daily_new_target: number;
 }
+
+export interface UserPackageEnrollment {
+  status: PackageEnrollmentStatus;
+  dailyNewTarget: number;
+}

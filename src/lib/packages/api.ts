@@ -6,6 +6,7 @@ import type {
   MemorizationPackageRecord,
   PackageCategory,
   PackageEnrollmentStatus,
+  UserPackageEnrollment,
   UserMemorizationPackageRecord,
 } from "./types";
 
@@ -67,7 +68,7 @@ export async function fetchPublishedMemorizationPackages(): Promise<
 
 export async function fetchUserPackageEnrollments(
   userId: string,
-): Promise<Record<string, PackageEnrollmentStatus>> {
+): Promise<Record<string, UserPackageEnrollment>> {
   const supabase = getSupabaseBrowserClient();
 
   if (!supabase) {
@@ -85,8 +86,11 @@ export async function fetchUserPackageEnrollments(
 
   const rows = (data ?? []) as UserMemorizationPackageRecord[];
 
-  return rows.reduce<Record<string, PackageEnrollmentStatus>>((acc, row) => {
-    acc[row.package_id] = row.status;
+  return rows.reduce<Record<string, UserPackageEnrollment>>((acc, row) => {
+    acc[row.package_id] = {
+      status: row.status,
+      dailyNewTarget: row.daily_new_target,
+    };
     return acc;
   }, {});
 }
@@ -107,6 +111,42 @@ export async function setUserPackageEnrollmentStatus(
       user_id: userId,
       package_id: packageId,
       status,
+      updated_at: new Date().toISOString(),
+    },
+    {
+      onConflict: "user_id,package_id",
+    },
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function setUserPackageDailyNewTarget(
+  userId: string,
+  packageId: string,
+  dailyNewTarget: number,
+): Promise<void> {
+  if (
+    !Number.isInteger(dailyNewTarget) ||
+    dailyNewTarget < 0 ||
+    dailyNewTarget > 50
+  ) {
+    throw new Error("Daily new target must be between 0 and 50");
+  }
+
+  const supabase = getSupabaseBrowserClient();
+
+  if (!supabase) {
+    throw new Error("Supabase credentials are missing");
+  }
+
+  const { error } = await supabase.from("user_memorization_packages").upsert(
+    {
+      user_id: userId,
+      package_id: packageId,
+      daily_new_target: dailyNewTarget,
       updated_at: new Date().toISOString(),
     },
     {
