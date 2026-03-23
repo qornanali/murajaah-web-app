@@ -741,47 +741,67 @@ export default function Home() {
       return;
     }
 
-    const currentVerseKey = toVerseKey(ayah.surahNumber, ayah.ayahNumber);
+    const revealSessionId = postRatingReveal.sessionId;
+    const revealVerseKey = postRatingReveal.verseKey;
+    const revealRating = postRatingReveal.rating;
+    const revealExpiresAt = postRatingReveal.expiresAt;
+    const revealAyah = ayah;
 
-    if (currentVerseKey !== postRatingReveal.verseKey) {
-      clearPostRatingReveal();
+    const currentVerseKey = toVerseKey(
+      revealAyah.surahNumber,
+      revealAyah.ayahNumber,
+    );
+
+    if (currentVerseKey !== revealVerseKey) {
+      setPostRatingReveal((previous) =>
+        previous?.sessionId === revealSessionId ? null : previous,
+      );
+      postRatingRevealFinalizingRef.current = false;
       return;
     }
 
     const tick = () => {
-      const remaining = Math.max(
-        0,
-        Math.ceil((postRatingReveal.expiresAt - Date.now()) / 1000),
-      );
+      const remaining = Math.max(0, Math.ceil((revealExpiresAt - Date.now()) / 1000));
 
       setPostRatingReveal((previous) =>
-        previous ? { ...previous, remainingSeconds: remaining } : previous,
+        !previous || previous.sessionId !== revealSessionId
+          ? previous
+          : previous.remainingSeconds === remaining
+            ? previous
+            : { ...previous, remainingSeconds: remaining },
       );
 
-      if (remaining <= 0) {
-        window.clearInterval(intervalId);
-
-        if (postRatingRevealFinalizingRef.current) {
-          return;
-        }
-
-        const snapshotVerseKey = toVerseKey(ayah.surahNumber, ayah.ayahNumber);
-
-        if (snapshotVerseKey !== postRatingReveal.verseKey) {
-          setPostRatingReveal(null);
-          postRatingRevealFinalizingRef.current = false;
-          return;
-        }
-
-        postRatingRevealFinalizingRef.current = true;
-        setPostRatingReveal(null);
-
-        void commitRatingAndAdvance(postRatingReveal.rating, ayah).finally(
-          () => {
-            postRatingRevealFinalizingRef.current = false;
-          },
-        );
+      if (remaining > 0) {
+        return;
       }
+
+      window.clearInterval(intervalId);
+
+      if (postRatingRevealFinalizingRef.current) {
+        return;
+      }
+
+      const snapshotVerseKey = toVerseKey(
+        revealAyah.surahNumber,
+        revealAyah.ayahNumber,
+      );
+
+      if (snapshotVerseKey !== revealVerseKey) {
+        setPostRatingReveal((previous) =>
+          previous?.sessionId === revealSessionId ? null : previous,
+        );
+        postRatingRevealFinalizingRef.current = false;
+        return;
+      }
+
+      postRatingRevealFinalizingRef.current = true;
+      setPostRatingReveal((previous) =>
+        previous?.sessionId === revealSessionId ? null : previous,
+      );
+
+      void commitRatingAndAdvance(revealRating, revealAyah).finally(() => {
+        postRatingRevealFinalizingRef.current = false;
+      });
     };
 
     const intervalId = window.setInterval(tick, 250);
