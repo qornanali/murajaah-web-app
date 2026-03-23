@@ -5,9 +5,9 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import InfoModal, { type InfoTab } from "@/components/ui/InfoModal";
+import MethodologyModal from "@/components/ui/MethodologyModal";
 import OnboardingModal from "@/components/ui/OnboardingModal";
 import AyahCard, { type AyahCardData } from "@/components/quran/AyahCard";
-import MethodologySection from "@/components/sections/MethodologySection";
 import { SurahCompletionCard } from "@/components/surah/SurahCompletionCard";
 import { SurahMasteryCard } from "@/components/surah/SurahMasteryCard";
 import BreakCard from "@/components/break/BreakCard";
@@ -147,6 +147,7 @@ export default function Home() {
   const [guestUserId, setGuestUserId] = useState<string | null>(null);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [activeInfoTab, setActiveInfoTab] = useState<InfoTab>("source");
+  const [isMethodologyModalOpen, setIsMethodologyModalOpen] = useState(false);
   const [isSourceSheetOpen, setIsSourceSheetOpen] = useState(false);
   const [sourceSheetTab, setSourceSheetTab] = useState<"surah" | "packages">(
     "surah",
@@ -1234,7 +1235,26 @@ export default function Home() {
               </div>
             </div>
 
-            <MethodologySection locale={locale} />
+            <button
+              type="button"
+              onClick={() => setIsMethodologyModalOpen(true)}
+              className="group flex items-center gap-2 rounded-full border-0 bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:from-emerald-700 hover:to-emerald-600 dark:from-emerald-500 dark:to-emerald-400 dark:hover:from-emerald-600 dark:hover:to-emerald-500"
+            >
+              <svg
+                className="h-3.5 w-3.5 transition-transform group-hover:scale-110"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {t("page.learnAboutMethodology", locale)}
+            </button>
 
             {ayahLoading ? (
               <div className="rounded-[28px] border border-emerald-900/15 bg-white/70 p-4 text-sm text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
@@ -1516,6 +1536,12 @@ export default function Home() {
           setIsOnboardingModalOpen(false);
           dismissOnboardingModal();
         }}
+      />
+
+      <MethodologyModal
+        isOpen={isMethodologyModalOpen}
+        locale={locale}
+        onClose={() => setIsMethodologyModalOpen(false)}
       />
 
       <InfoModal
