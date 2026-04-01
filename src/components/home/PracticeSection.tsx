@@ -67,6 +67,7 @@ export function PracticeSection({
   sessionRelearnQueueLength,
   latestProgress,
   surahMasteryData,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   newVerseKeysToday,
   onRate,
   onForceSkipPostRatingReveal,
