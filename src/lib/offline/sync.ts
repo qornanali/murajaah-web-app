@@ -73,6 +73,7 @@ const toSupabasePayload = (record: AyahProgressRow) => ({
   interval: record.interval,
   repetitions: record.repetitions,
   next_review_date: record.nextReviewDate,
+  updated_at: record.updatedAt,
 });
 
 async function pushAyahProgress(record: AyahProgressRow) {

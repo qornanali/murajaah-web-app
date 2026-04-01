@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle, BookOpen } from "lucide-react";
 
 import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
+import { murajaahDB } from "@/lib/offline/db";
 import { fetchAyahByKey, toVerseKey } from "@/lib/quranApi";
 import { getSurahName } from "@/lib/quranMeta";
 import { estimateRevealDurationSeconds, splitAyahByWaqf } from "@/lib/quranUtils";
@@ -241,11 +242,50 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
   }, [activeUserId, loadDueQueue, clearSessionRelearn]);
 
   useEffect(() => {
-    if (!packagesReady || dueQueue.length === 0) return;
+    if (!packagesReady || !activeUserId) {
+      if (packagesReady && !activeUserId) setAyahLoading(false);
+      return;
+    }
+
     const queue = buildSessionQueue(dueQueue, trackVerseKeys);
-    setSessionQueue(queue);
-    setQueueIndex(0);
-  }, [packagesReady, dueQueue, trackVerseKeys]);
+
+    if (queue.length > 0) {
+      setSessionQueue(queue);
+      setQueueIndex(0);
+      return;
+    }
+
+    if (!trackVerseKeys || trackVerseKeys.size === 0) {
+      setAyahLoading(false);
+      return;
+    }
+
+    const seedNewAyahs = async () => {
+      try {
+        const reviewed = await murajaahDB.ayahProgress
+          .toCollection()
+          .filter((row) => row.userId === activeUserId)
+          .toArray()
+          .then((rows) => new Set(rows.map((r) => toVerseKey(r.surahNumber, r.ayahNumber))));
+
+        const newKeys = Array.from(trackVerseKeys)
+          .filter((key) => !reviewed.has(key))
+          .slice(0, 10);
+
+        if (newKeys.length === 0) {
+          setAyahLoading(false);
+          return;
+        }
+
+        setSessionQueue(newKeys);
+        setQueueIndex(0);
+      } catch {
+        setAyahLoading(false);
+      }
+    };
+
+    void seedNewAyahs();
+  }, [packagesReady, activeUserId, dueQueue, trackVerseKeys]);
 
   useEffect(() => {
     if (sessionQueue.length === 0 && packagesReady && activeUserId && dueQueue.length >= 0) return;
