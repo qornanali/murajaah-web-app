@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import InfoModal, { type InfoTab } from "@/components/ui/InfoModal";
 import MethodologyModal from "@/components/ui/MethodologyModal";
 import OnboardingModal from "@/components/ui/OnboardingModal";
+import { ActiveTracksSection } from "@/components/home/ActiveTracksSection";
 import { HeaderBar } from "@/components/home/HeaderBar";
 import { PracticeSection } from "@/components/home/PracticeSection";
 import { StatsSection } from "@/components/home/StatsSection";
@@ -144,6 +145,7 @@ export default function Home() {
   );
   const [packageActionId, setPackageActionId] = useState<string | null>(null);
   const [selectedSurahNumber, setSelectedSurahNumber] = useState(1);
+  const [activeSurahTrackNumbers, setActiveSurahTrackNumbers] = useState<number[]>([1]);
   const [guestUserId, setGuestUserId] = useState<string | null>(null);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [activeInfoTab, setActiveInfoTab] = useState<InfoTab>("source");
@@ -277,6 +279,72 @@ export default function Home() {
       ).length,
     [packageStatusById],
   );
+
+  const activeTracks = useMemo(() => {
+    const packageTracks = packages
+      .filter((item) => packageStatusById[item.id] === "active")
+      .map((item) => {
+        const snapshot = packageProgressById[item.id] ?? {
+          totalVerses: 0,
+          reviewedVerses: 0,
+          progressPercent: 0,
+        };
+
+        return {
+          id: `package:${item.id}`,
+          kind: "package" as const,
+          title: item.title,
+          subtitle: item.description,
+          progressPercent: snapshot.progressPercent,
+          reviewedVerses: snapshot.reviewedVerses,
+          totalVerses: snapshot.totalVerses,
+          isSelected: selectedPackageId === item.id,
+          isBusy: packageActionId === item.id,
+        };
+      });
+
+    const surahTracks = activeSurahTrackNumbers.map((surahNumber) => {
+      const surahTrackPackage: MemorizationPackage = {
+        id: `surah-track:${surahNumber}`,
+        title: getSurahName(surahNumber),
+        description: "",
+        category: "surah",
+        starterVerseKey: toVerseKey(surahNumber, 1),
+        selector: {
+          type: "surah",
+          surahNumber,
+        },
+      };
+      const snapshot = getPackageProgressSnapshot(
+        surahTrackPackage,
+        reviewedVerseKeys,
+      );
+
+      return {
+        id: `surah:${surahNumber}`,
+        kind: "surah" as const,
+        title: getSurahName(surahNumber),
+        subtitle: `${t("quran.surah", locale)} ${surahNumber}`,
+        progressPercent: snapshot.progressPercent,
+        reviewedVerses: snapshot.reviewedVerses,
+        totalVerses: snapshot.totalVerses,
+        isSelected: !selectedPackageId && selectedSurahNumber === surahNumber,
+        isBusy: false,
+      };
+    });
+
+    return [...surahTracks, ...packageTracks];
+  }, [
+    activeSurahTrackNumbers,
+    locale,
+    packageActionId,
+    packageProgressById,
+    packageStatusById,
+    packages,
+    reviewedVerseKeys,
+    selectedPackageId,
+    selectedSurahNumber,
+  ]);
 
   const loadAyahFromApi = async (verseKey: string) => {
     setAyahLoading(true);
@@ -829,7 +897,18 @@ export default function Home() {
     void loadAyahFromApi(nextPackage.starterVerseKey);
   };
 
+  const registerSurahTrack = useCallback((surahNumber: number) => {
+    setActiveSurahTrackNumbers((previous) => {
+      if (previous.includes(surahNumber)) {
+        return previous;
+      }
+
+      return [surahNumber, ...previous].slice(0, 24);
+    });
+  }, []);
+
   const handleOpenSurah = () => {
+    registerSurahTrack(selectedSurahNumber);
     setSelectedPackageId(null);
     setDailyTargetNotice(null);
     void loadAyahFromApi(toVerseKey(selectedSurahNumber, 1));
@@ -949,6 +1028,58 @@ export default function Home() {
     return t("page.statusNotStarted", locale);
   };
 
+  const handlePlayTrack = (track: (typeof activeTracks)[number]) => {
+    if (track.kind === "package") {
+      const packageId = track.id.replace("package:", "");
+      handleSelectPackage(packageId);
+      return;
+    }
+
+    const surahNumber = Number.parseInt(track.id.replace("surah:", ""), 10);
+
+    if (!Number.isInteger(surahNumber)) {
+      return;
+    }
+
+    registerSurahTrack(surahNumber);
+    setSelectedPackageId(null);
+    setSelectedSurahNumber(surahNumber);
+    setDailyTargetNotice(null);
+    void loadAyahFromApi(toVerseKey(surahNumber, 1));
+  };
+
+  const handleResetTrack = (track: (typeof activeTracks)[number]) => {
+    if (track.kind === "package") {
+      const packageId = track.id.replace("package:", "");
+      void updatePackageStatus(packageId, "paused");
+
+      if (selectedPackageId === packageId) {
+        setSelectedPackageId(null);
+      }
+
+      return;
+    }
+
+    const surahNumber = Number.parseInt(track.id.replace("surah:", ""), 10);
+
+    if (!Number.isInteger(surahNumber)) {
+      return;
+    }
+
+    setActiveSurahTrackNumbers((previous) => {
+      const nextTracks = previous.filter((item) => item !== surahNumber);
+
+      if (!selectedPackageId && selectedSurahNumber === surahNumber) {
+        const fallbackSurah = nextTracks[0] ?? 1;
+        setSelectedSurahNumber(fallbackSurah);
+        setDailyTargetNotice(null);
+        void loadAyahFromApi(toVerseKey(fallbackSurah, 1));
+      }
+
+      return nextTracks;
+    });
+  };
+
   const handleSignOut = async () => {
     await signOut();
     router.push("/");
@@ -1066,6 +1197,14 @@ export default function Home() {
           onRetryLoadAyah={() => {
             void loadAyahFromApi(selectedVerseKey);
           }}
+        />
+
+        <ActiveTracksSection
+          locale={locale}
+          tracks={activeTracks}
+          onAddTracks={() => openSourceSheet("packages")}
+          onPlayTrack={handlePlayTrack}
+          onResetTrack={handleResetTrack}
         />
 
         <StatsSection
