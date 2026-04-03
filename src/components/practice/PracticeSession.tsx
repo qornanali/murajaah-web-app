@@ -442,7 +442,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
     : null;
 
   const currentAyahLabel = ayah
-    ? `${t("quran.surah", locale)} ${ayah.surahNumber} · ${t("quran.ayah", locale)} ${ayah.ayahNumber}`
+    ? `${getSurahName(ayah.surahNumber)} · ${t("quran.ayah", locale)} ${ayah.ayahNumber}`
     : null;
 
   const isAutoRevealActive = Boolean(postRatingReveal);
