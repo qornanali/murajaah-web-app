@@ -14,12 +14,19 @@ import { SourceSheet } from "@/components/home/SourceSheet";
 import { toUserError } from "@/lib/errorHandling";
 import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
   fetchPublishedMemorizationPackages,
   setUserPackageDailyNewTarget,
   fetchUserPackageEnrollments,
   setUserPackageEnrollmentStatus,
 } from "@/lib/packages/api";
+import { resetProgressForVerseKeys } from "@/lib/progressReset";
+import {
+  fetchUserSurahTracks,
+  addUserSurahTrack,
+  removeUserSurahTrack,
+} from "@/lib/surahTracks";
 import { PACKAGE_CATALOG } from "@/lib/packages/catalog";
 import {
   type MemorizationPackage,
@@ -43,6 +50,7 @@ const TOTAL_SURAHS = 114;
 const PACKAGE_PAGE_SIZE = 6;
 const GUEST_PACKAGE_STATUS_PREFIX = "murajaah.guest.packageStatus";
 const GUEST_PACKAGE_TARGET_PREFIX = "murajaah.guest.packageTarget";
+const GUEST_SURAH_TRACKS_PREFIX = "murajaah.guest.surahTracks";
 const DEFAULT_DAILY_NEW_TARGET = 3;
 
 const surahOptions = Array.from({ length: TOTAL_SURAHS }, (_, index) => {
@@ -112,7 +120,12 @@ export default function Home() {
   );
   const [packageActionId, setPackageActionId] = useState<string | null>(null);
   const [selectedSurahNumber, setSelectedSurahNumber] = useState(1);
-  const [activeSurahTrackNumbers, setActiveSurahTrackNumbers] = useState<number[]>([1]);
+  const [activeSurahTrackNumbers, setActiveSurahTrackNumbers] = useState<number[]>([]);
+  const [confirmReset, setConfirmReset] = useState<{
+    trackId: string;
+    verseKeys: Set<string>;
+    onConfirm: () => void;
+  } | null>(null);
   const [guestUserId, setGuestUserId] = useState<string | null>(null);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [activeInfoTab, setActiveInfoTab] = useState<InfoTab>("source");
@@ -327,6 +340,46 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const loadSurahTracks = async () => {
+      if (!activeUserId) {
+        return;
+      }
+
+      if (isGuestMode && guestUserId) {
+        const key = `${GUEST_SURAH_TRACKS_PREFIX}.${guestUserId}`;
+        const raw = window.localStorage.getItem(key);
+
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw) as number[];
+            if (Array.isArray(parsed)) {
+              setActiveSurahTrackNumbers(parsed);
+            }
+          } catch {
+            setActiveSurahTrackNumbers([]);
+          }
+        }
+
+        return;
+      }
+
+      if (!authenticatedUserId) {
+        return;
+      }
+
+      try {
+        const tracks = await fetchUserSurahTracks(authenticatedUserId);
+        setActiveSurahTrackNumbers(tracks);
+      } catch {
+        setActiveSurahTrackNumbers([]);
+      }
+    };
+
+    void loadSurahTracks();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticatedUserId, guestUserId]);
+
+  useEffect(() => {
     if (isInitialized && !hasSeenOnboardingModal) {
       setIsOnboardingModalOpen(true);
     }
@@ -440,6 +493,15 @@ export default function Home() {
   }, [isGuestMode, guestUserId, packageDailyTargetById]);
 
   useEffect(() => {
+    if (!isGuestMode || !guestUserId) {
+      return;
+    }
+
+    const key = `${GUEST_SURAH_TRACKS_PREFIX}.${guestUserId}`;
+    window.localStorage.setItem(key, JSON.stringify(activeSurahTrackNumbers));
+  }, [isGuestMode, guestUserId, activeSurahTrackNumbers]);
+
+  useEffect(() => {
     const loadProgressState = async () => {
       if (!activeUserId) {
         setReviewedVerseKeys(new Set());
@@ -548,15 +610,24 @@ export default function Home() {
     router.push(`/practice/package/${packageId}`);
   };
 
-  const registerSurahTrack = useCallback((surahNumber: number) => {
-    setActiveSurahTrackNumbers((previous) => {
-      if (previous.includes(surahNumber)) {
-        return previous;
-      }
+  const registerSurahTrack = useCallback(
+    (surahNumber: number) => {
+      setActiveSurahTrackNumbers((previous) => {
+        if (previous.includes(surahNumber)) {
+          return previous;
+        }
 
-      return [surahNumber, ...previous].slice(0, 24);
-    });
-  }, []);
+        const next = [surahNumber, ...previous].slice(0, 24);
+
+        if (user?.id) {
+          void addUserSurahTrack(user.id, surahNumber);
+        }
+
+        return next;
+      });
+    },
+    [user],
+  );
 
   const handleOpenSurah = () => {
     registerSurahTrack(selectedSurahNumber);
@@ -664,27 +735,117 @@ export default function Home() {
     router.push(`/practice/surah/${surahNumber}`);
   };
 
-  const handleResetTrack = (track: (typeof activeTracks)[number]) => {
+  const computeOtherActiveVerseKeys = (
+    excludeTrackId: string,
+  ): Set<string> => {
+    const other = new Set<string>();
+
+    packages
+      .filter(
+        (pkg) =>
+          packageStatusById[pkg.id] === "active" &&
+          `package:${pkg.id}` !== excludeTrackId,
+      )
+      .forEach((pkg) => {
+        getPackageVerseKeys(pkg).forEach((k) => other.add(k));
+      });
+
+    activeSurahTrackNumbers
+      .filter((n) => `surah:${n}` !== excludeTrackId)
+      .forEach((n) => {
+        const surahPkg: MemorizationPackage = {
+          id: `surah-track:${n}`,
+          title: "",
+          description: "",
+          category: "surah",
+          starterVerseKey: toVerseKey(n, 1),
+          selector: { type: "surah", surahNumber: n },
+        };
+        getPackageVerseKeys(surahPkg).forEach((k) => other.add(k));
+      });
+
+    return other;
+  };
+
+  const doResetTrack = async (
+    track: (typeof activeTracks)[number],
+    verseKeys: Set<string>,
+  ) => {
+    if (activeUserId) {
+      const otherKeys = computeOtherActiveVerseKeys(track.id);
+      const exclusiveKeys = new Set(
+        Array.from(verseKeys).filter((k) => !otherKeys.has(k)),
+      );
+      await resetProgressForVerseKeys(activeUserId, exclusiveKeys);
+    }
+
     if (track.kind === "package") {
       const packageId = track.id.replace("package:", "");
-      void updatePackageStatus(packageId, "paused");
+      await updatePackageStatus(packageId, "paused");
 
       if (selectedPackageId === packageId) {
         setSelectedPackageId(null);
       }
+    } else {
+      const surahNumber = Number.parseInt(track.id.replace("surah:", ""), 10);
 
-      return;
+      if (!Number.isInteger(surahNumber)) {
+        return;
+      }
+
+      setActiveSurahTrackNumbers((previous) =>
+        previous.filter((item) => item !== surahNumber),
+      );
+
+      if (user?.id) {
+        void removeUserSurahTrack(user.id, surahNumber);
+      }
     }
 
-    const surahNumber = Number.parseInt(track.id.replace("surah:", ""), 10);
+    if (activeUserId) {
+      void loadDueQueue(activeUserId);
 
-    if (!Number.isInteger(surahNumber)) {
-      return;
+      const allRows = await murajaahDB.ayahProgress
+        .toCollection()
+        .filter((row) => row.userId === activeUserId)
+        .toArray();
+
+      const reviewed = new Set<string>();
+      allRows.forEach((row) => {
+        reviewed.add(toVerseKey(row.surahNumber, row.ayahNumber));
+      });
+      setReviewedVerseKeys(reviewed);
+    }
+  };
+
+  const handleResetTrack = (track: (typeof activeTracks)[number]) => {
+    let trackVerseKeys: Set<string>;
+
+    if (track.kind === "package") {
+      const packageId = track.id.replace("package:", "");
+      const pkg = packages.find((p) => p.id === packageId);
+      trackVerseKeys = pkg ? getPackageVerseKeys(pkg) : new Set();
+    } else {
+      const surahNumber = Number.parseInt(track.id.replace("surah:", ""), 10);
+      const surahPkg: MemorizationPackage = {
+        id: `surah-track:${surahNumber}`,
+        title: "",
+        description: "",
+        category: "surah",
+        starterVerseKey: toVerseKey(surahNumber, 1),
+        selector: { type: "surah", surahNumber },
+      };
+      trackVerseKeys = getPackageVerseKeys(surahPkg);
     }
 
-    setActiveSurahTrackNumbers((previous) =>
-      previous.filter((item) => item !== surahNumber),
-    );
+    setConfirmReset({
+      trackId: track.id,
+      verseKeys: trackVerseKeys,
+      onConfirm: () => {
+        setConfirmReset(null);
+        void doResetTrack(track, trackVerseKeys);
+      },
+    });
   };
 
   const handleSignOut = async () => {
@@ -824,6 +985,26 @@ export default function Home() {
           newTodayCount: newVerseKeysToday.size,
           totalReviewedVerses: reviewedVerseKeys.size,
         }}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmReset !== null}
+        title="Remove track & reset progress?"
+        body={(() => {
+          if (!confirmReset) return "";
+          const otherKeys = computeOtherActiveVerseKeys(confirmReset.trackId);
+          const exclusiveCount = Array.from(confirmReset.verseKeys).filter(
+            (k) => !otherKeys.has(k),
+          ).length;
+          return exclusiveCount > 0
+            ? `This will permanently delete memorization progress for ${exclusiveCount} verse${
+                exclusiveCount === 1 ? "" : "s"
+              } not shared with other active tracks.`
+            : "No verse progress will be deleted since all verses overlap with another active track.";
+        })()}
+        confirmLabel="Remove & Reset"
+        onConfirm={() => confirmReset?.onConfirm()}
+        onCancel={() => setConfirmReset(null)}
       />
 
       <SourceSheet
