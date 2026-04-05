@@ -144,6 +144,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const feedbackTimerRef = useRef<number | null>(null);
   const postRatingRevealFinalizingRef = useRef(false);
+  const sessionInitializedRef = useRef(false);
 
   const activeUserId = user?.id ?? guestUserId;
 
@@ -227,6 +228,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
 
   useEffect(() => {
     if (!activeUserId) return;
+    sessionInitializedRef.current = false;
     void loadDueQueue(activeUserId);
     clearSessionRelearn();
   }, [activeUserId, loadDueQueue, clearSessionRelearn]);
@@ -237,11 +239,14 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
       return;
     }
 
+    if (sessionInitializedRef.current) return;
+
     const queue = buildSessionQueue(dueQueue, trackVerseKeys);
 
     if (queue.length > 0) {
       setSessionQueue(queue);
       setQueueIndex(0);
+      sessionInitializedRef.current = true;
       return;
     }
 
@@ -269,6 +274,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
 
         setSessionQueue(newKeys);
         setQueueIndex(0);
+        sessionInitializedRef.current = true;
       } catch {
         setAyahLoading(false);
       }
