@@ -182,17 +182,11 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
             next: "Berikutnya",
             tomorrow: "besok",
             inDays: (days: number) => `${days} hari lagi`,
-            repsReset: "pengulangan direset",
-            repsTo: (reps: number) => `pengulangan ${reps}`,
-            efTo: (ef: number) => `EF ${ef.toFixed(2)}`,
           }
         : {
             next: "Next",
             tomorrow: "tomorrow",
             inDays: (days: number) => `in ${days} days`,
-            repsReset: "reps reset",
-            repsTo: (reps: number) => `reps ${reps}`,
-            efTo: (ef: number) => `EF ${ef.toFixed(2)}`,
           },
     [locale],
   );
@@ -203,11 +197,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
         const result = calculateSM2(btn.value, baseEaseFactor, baseInterval, baseRepetitions);
         const nextReviewText =
           result.interval <= 1 ? previewCopy.tomorrow : previewCopy.inDays(result.interval);
-        const effectText =
-          btn.value < 3
-            ? `${previewCopy.repsReset} · ${previewCopy.efTo(result.easeFactor)}`
-            : `${previewCopy.repsTo(result.repetitions)} · ${previewCopy.efTo(result.easeFactor)}`;
-        return { ...btn, nextReviewText, effectText };
+        return { ...btn, nextReviewText };
       }),
     [baseEaseFactor, baseInterval, baseRepetitions, previewCopy],
   );
@@ -535,7 +525,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
 
       {!isComplete && !isQueueEmpty && ayah && (
         <footer className="border-t border-emerald-900/10 bg-[#FDFCF8]/98 p-4 backdrop-blur-sm dark:border-emerald-100/10 dark:bg-emerald-950/98 sm:p-5">
-          <div className="grid grid-cols-4 gap-2 sm:gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
             {ratingPreviews.map((btn) => (
               <div
                 key={btn.value}
@@ -551,10 +541,9 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
                 >
                   {t(btn.labelKey, locale)}
                 </button>
-                <div className="mt-1.5 space-y-0.5 px-0.5 text-[10px] leading-4 text-emerald-900/70 dark:text-emerald-100/70">
-                  <p><span className="font-semibold">{previewCopy.next}:</span> {btn.nextReviewText}</p>
-                  <p className="truncate">{btn.effectText}</p>
-                </div>
+                <p className="mt-1.5 px-0.5 text-[10px] leading-4 text-emerald-900/70 dark:text-emerald-100/70">
+                  <span className="font-semibold">{previewCopy.next}:</span> {btn.nextReviewText}
+                </p>
               </div>
             ))}
           </div>

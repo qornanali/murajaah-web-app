@@ -134,21 +134,13 @@ export default function AyahCard({
       locale === "id"
         ? {
             next: "Berikutnya",
-            effect: "Efek",
             tomorrow: "besok",
             inDays: (days: number) => `${days} hari lagi`,
-            repsReset: "pengulangan direset",
-            repsTo: (repetitions: number) => `pengulangan ${repetitions}`,
-            efTo: (easeFactor: number) => `EF ${easeFactor.toFixed(2)}`,
           }
         : {
             next: "Next",
-            effect: "Effect",
             tomorrow: "tomorrow",
             inDays: (days: number) => `in ${days} days`,
-            repsReset: "reps reset",
-            repsTo: (repetitions: number) => `reps ${repetitions}`,
-            efTo: (easeFactor: number) => `EF ${easeFactor.toFixed(2)}`,
           },
     [locale],
   );
@@ -167,15 +159,9 @@ export default function AyahCard({
           ? previewCopy.tomorrow
           : previewCopy.inDays(result.interval);
 
-      const repetitionText =
-        button.value < 3
-          ? previewCopy.repsReset
-          : previewCopy.repsTo(result.repetitions);
-
       return {
         ...button,
         nextReviewText,
-        effectText: `${repetitionText} · ${previewCopy.efTo(result.easeFactor)}`,
       };
     });
   }, [baseEaseFactor, baseInterval, baseRepetitions, previewCopy]);
@@ -367,16 +353,10 @@ export default function AyahCard({
             >
               {t(button.labelKey, locale)}
             </button>
-            <div className="mt-2 space-y-1 px-1 text-[11px] leading-4 text-emerald-900/80 dark:text-emerald-100/80">
-              <p>
-                <span className="font-semibold">{previewCopy.next}:</span>{" "}
-                {button.nextReviewText}
-              </p>
-              <p>
-                <span className="font-semibold">{previewCopy.effect}:</span>{" "}
-                {button.effectText}
-              </p>
-            </div>
+            <p className="mt-2 px-1 text-[11px] leading-4 text-emerald-900/80 dark:text-emerald-100/80">
+              <span className="font-semibold">{previewCopy.next}:</span>{" "}
+              {button.nextReviewText}
+            </p>
           </div>
         ))}
       </footer>

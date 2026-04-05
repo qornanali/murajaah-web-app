@@ -825,6 +825,7 @@ export default function Home() {
         onSetLocale={setLocale}
         onSetTheme={setTheme}
         onOpenInfoModal={() => setIsInfoModalOpen(true)}
+        onOpenMethodologyModal={() => setIsMethodologyModalOpen(true)}
         onSignOut={handleSignOut}
       />
 
