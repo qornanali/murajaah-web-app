@@ -17,7 +17,6 @@ import { t } from "@/lib/i18n";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
   fetchPublishedMemorizationPackages,
-  setUserPackageDailyNewTarget,
   fetchUserPackageEnrollments,
   setUserPackageEnrollmentStatus,
 } from "@/lib/packages/api";
@@ -49,9 +48,7 @@ import { useUIStore } from "@/store/uiStore";
 const TOTAL_SURAHS = 114;
 const PACKAGE_PAGE_SIZE = 6;
 const GUEST_PACKAGE_STATUS_PREFIX = "murajaah.guest.packageStatus";
-const GUEST_PACKAGE_TARGET_PREFIX = "murajaah.guest.packageTarget";
 const GUEST_SURAH_TRACKS_PREFIX = "murajaah.guest.surahTracks";
-const DEFAULT_DAILY_NEW_TARGET = 3;
 
 const surahOptions = Array.from({ length: TOTAL_SURAHS }, (_, index) => {
   const surahNumber = index + 1;
@@ -105,9 +102,6 @@ export default function Home() {
   );
   const [packageStatusById, setPackageStatusById] = useState<
     Record<string, PackageEnrollmentStatus>
-  >({});
-  const [packageDailyTargetById, setPackageDailyTargetById] = useState<
-    Record<string, number>
   >({});
   const [reviewedVerseKeys, setReviewedVerseKeys] = useState<Set<string>>(
     new Set(),
@@ -393,13 +387,10 @@ export default function Home() {
 
       if (!authenticatedUserId && guestUserId) {
         const statusStorageKey = `${GUEST_PACKAGE_STATUS_PREFIX}.${guestUserId}`;
-        const targetStorageKey = `${GUEST_PACKAGE_TARGET_PREFIX}.${guestUserId}`;
         const rawStatus = window.localStorage.getItem(statusStorageKey);
-        const rawTarget = window.localStorage.getItem(targetStorageKey);
 
         if (!rawStatus) {
           setPackageStatusById({});
-          setPackageDailyTargetById({});
         } else {
           try {
             const parsed = JSON.parse(rawStatus) as Record<
@@ -407,30 +398,9 @@ export default function Home() {
               PackageEnrollmentStatus
             >;
             setPackageStatusById(parsed);
-            setPackageDailyTargetById(
-              Object.keys(parsed).reduce<Record<string, number>>((acc, id) => {
-                acc[id] = DEFAULT_DAILY_NEW_TARGET;
-                return acc;
-              }, {}),
-            );
           } catch {
             setPackageStatusById({});
-            setPackageDailyTargetById({});
           }
-        }
-
-        try {
-          if (!rawTarget) {
-            return;
-          }
-
-          const parsedTargets = JSON.parse(rawTarget) as Record<string, number>;
-          setPackageDailyTargetById((previous) => ({
-            ...previous,
-            ...parsedTargets,
-          }));
-        } catch {
-          setPackageDailyTargetById({});
         }
 
         return;
@@ -449,15 +419,6 @@ export default function Home() {
             acc[packageId] = enrollment.status;
             return acc;
           }, {}),
-        );
-        setPackageDailyTargetById(
-          Object.entries(enrollmentMap).reduce<Record<string, number>>(
-            (acc, [packageId, enrollment]) => {
-              acc[packageId] = enrollment.dailyNewTarget;
-              return acc;
-            },
-            {},
-          ),
         );
       } catch (loadError) {
         const message = toUserError("PKG-ENROLL-001", loadError);
@@ -479,18 +440,6 @@ export default function Home() {
       JSON.stringify(packageStatusById),
     );
   }, [isGuestMode, guestUserId, packageStatusById]);
-
-  useEffect(() => {
-    if (!isGuestMode || !guestUserId) {
-      return;
-    }
-
-    const targetStorageKey = `${GUEST_PACKAGE_TARGET_PREFIX}.${guestUserId}`;
-    window.localStorage.setItem(
-      targetStorageKey,
-      JSON.stringify(packageDailyTargetById),
-    );
-  }, [isGuestMode, guestUserId, packageDailyTargetById]);
 
   useEffect(() => {
     if (!isGuestMode || !guestUserId) {
@@ -634,47 +583,6 @@ export default function Home() {
     setSelectedPackageId(null);
     router.push(`/practice/surah/${selectedSurahNumber}`);
   };
-  const updatePackageDailyTarget = async (
-    packageId: string,
-    direction: "decrease" | "increase",
-  ) => {
-    const currentTarget =
-      packageDailyTargetById[packageId] ?? DEFAULT_DAILY_NEW_TARGET;
-    const nextTarget =
-      direction === "decrease"
-        ? Math.max(0, currentTarget - 1)
-        : Math.min(50, currentTarget + 1);
-
-    if (nextTarget === currentTarget) {
-      return;
-    }
-
-    setPackagesError(null);
-    setPackageDailyTargetById((prev) => ({
-      ...prev,
-      [packageId]: nextTarget,
-    }));
-
-    if (!user?.id) {
-      return;
-    }
-
-    setPackageActionId(packageId);
-
-    try {
-      await setUserPackageDailyNewTarget(user.id, packageId, nextTarget);
-    } catch (updateError) {
-      setPackageDailyTargetById((prev) => ({
-        ...prev,
-        [packageId]: currentTarget,
-      }));
-
-      const message = toUserError("PKG-UPDATE-001", updateError);
-      setPackagesError(message);
-    } finally {
-      setPackageActionId(null);
-    }
-  };
 
   const openSourceSheet = (tab: "surah" | "packages") => {
     setSourceSheetTab(tab);
@@ -683,7 +591,6 @@ export default function Home() {
 
   const updatePackageStatus = async (
     packageId: string,
-    status: PackageEnrollmentStatus,
   ) => {
     if (!activeUserId) {
       return;
@@ -694,22 +601,16 @@ export default function Home() {
 
     try {
       if (user?.id) {
-        await setUserPackageEnrollmentStatus(user.id, packageId, status);
+        await setUserPackageEnrollmentStatus(user.id, packageId, "active");
       }
 
       setPackageStatusById((prev) => ({
         ...prev,
-        [packageId]: status,
-      }));
-      setPackageDailyTargetById((prev) => ({
-        ...prev,
-        [packageId]: prev[packageId] ?? DEFAULT_DAILY_NEW_TARGET,
+        [packageId]: "active",
       }));
 
-      if (status === "active") {
-        handleSelectPackage(packageId);
-        setIsSourceSheetOpen(false);
-      }
+      handleSelectPackage(packageId);
+      setIsSourceSheetOpen(false);
     } catch (updateError) {
       const message = toUserError("PKG-UPDATE-001", updateError);
       setPackagesError(message);
@@ -781,7 +682,16 @@ export default function Home() {
 
     if (track.kind === "package") {
       const packageId = track.id.replace("package:", "");
-      await updatePackageStatus(packageId, "paused");
+
+      setPackageStatusById((prev) => {
+        const next = { ...prev };
+        delete next[packageId];
+        return next;
+      });
+
+      if (user?.id) {
+        void setUserPackageEnrollmentStatus(user.id, packageId, "paused");
+      }
 
       if (selectedPackageId === packageId) {
         setSelectedPackageId(null);
@@ -1021,7 +931,6 @@ export default function Home() {
         packagePageCount={packagePageCount}
         selectedPackageId={selectedPackageId}
         packageStatusById={packageStatusById}
-        packageDailyTargetById={packageDailyTargetById}
         packageProgressById={packageProgressById}
         packageActionId={packageActionId}
         packagesError={packagesError}
@@ -1040,8 +949,7 @@ export default function Home() {
           handleSelectPackage(packageId);
           setIsSourceSheetOpen(false);
         }}
-        onUpdatePackageDailyTarget={updatePackageDailyTarget}
-        onUpdatePackageStatus={updatePackageStatus}
+        onStartPackage={updatePackageStatus}
       />
     </main>
   );

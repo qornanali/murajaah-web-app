@@ -5,8 +5,6 @@ import type {
   PackageEnrollmentStatus,
 } from "@/lib/packages/types";
 
-const DEFAULT_DAILY_NEW_TARGET = 3;
-
 interface SurahOption {
   surahNumber: number;
   label: string;
@@ -26,7 +24,6 @@ interface SourceSheetProps {
   packagePageCount: number;
   selectedPackageId: string | null;
   packageStatusById: Record<string, PackageEnrollmentStatus>;
-  packageDailyTargetById: Record<string, number>;
   packageProgressById: Record<
     string,
     { totalVerses: number; reviewedVerses: number; progressPercent: number }
@@ -42,14 +39,7 @@ interface SourceSheetProps {
   onSetPackagePage: (page: number) => void;
   onOpenSurah: () => void;
   onSelectPackage: (packageId: string) => void;
-  onUpdatePackageDailyTarget: (
-    packageId: string,
-    direction: "decrease" | "increase",
-  ) => Promise<void>;
-  onUpdatePackageStatus: (
-    packageId: string,
-    status: PackageEnrollmentStatus,
-  ) => Promise<void>;
+  onStartPackage: (packageId: string) => Promise<void>;
 }
 
 export function SourceSheet({
@@ -66,7 +56,6 @@ export function SourceSheet({
   packagePageCount,
   selectedPackageId,
   packageStatusById,
-  packageDailyTargetById,
   packageProgressById,
   packageActionId,
   packagesError,
@@ -79,16 +68,8 @@ export function SourceSheet({
   onSetPackagePage,
   onOpenSurah,
   onSelectPackage,
-  onUpdatePackageDailyTarget,
-  onUpdatePackageStatus,
+  onStartPackage,
 }: SourceSheetProps) {
-  const statusLabel = (status: PackageEnrollmentStatus | undefined) => {
-    if (status === "active") return t("page.statusActive", locale);
-    if (status === "paused") return t("page.statusPaused", locale);
-    if (status === "completed") return t("page.statusCompleted", locale);
-    return t("page.statusNotStarted", locale);
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -213,8 +194,6 @@ export function SourceSheet({
               {paginatedPackages.map((item) => {
                 const isSelected = item.id === selectedPackageId;
                 const status = packageStatusById[item.id];
-                const dailyTarget =
-                  packageDailyTargetById[item.id] ?? DEFAULT_DAILY_NEW_TARGET;
                 const packageProgress = packageProgressById[item.id] ?? {
                   totalVerses: 0,
                   reviewedVerses: 0,
@@ -250,13 +229,6 @@ export function SourceSheet({
                         {item.description}
                       </p>
                       <p
-                        className={`mt-1 font-medium ${
-                          isSelected ? "text-emerald-50" : "text-emerald-800"
-                        }`}
-                      >
-                        {t("page.status", locale)}: {statusLabel(status)}
-                      </p>
-                      <p
                         className={`mt-1 ${
                           isSelected
                             ? "text-emerald-50/90"
@@ -284,70 +256,14 @@ export function SourceSheet({
                           }}
                         />
                       </div>
-                      <p
-                        className={`mt-1 ${
-                          isSelected
-                            ? "text-emerald-50/90"
-                            : "text-emerald-900/70"
-                        }`}
-                      >
-                        {t("page.dailyNewTarget", locale)}: {dailyTarget}
-                      </p>
                     </button>
 
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <div className="flex items-center gap-1 rounded-md border border-emerald-900/20 px-1.5 py-1 dark:border-emerald-100/20">
-                        <button
-                          type="button"
-                          disabled={isBusy || dailyTarget <= 0}
-                          aria-label={t("page.targetDecrease", locale)}
-                          onClick={() => {
-                            void onUpdatePackageDailyTarget(
-                              item.id,
-                              "decrease",
-                            );
-                          }}
-                          className={`rounded px-1.5 py-0.5 text-[11px] font-semibold transition-colors ${
-                            isSelected
-                              ? "bg-white/10 text-white hover:bg-white/20"
-                              : "bg-emerald-900/15 text-emerald-900 hover:bg-emerald-900/25"
-                          } disabled:cursor-not-allowed disabled:opacity-50`}
-                        >
-                          -
-                        </button>
-                        <span
-                          className={`min-w-8 text-center text-[11px] font-semibold ${
-                            isSelected
-                              ? "text-emerald-50"
-                              : "text-emerald-900 dark:text-emerald-100"
-                          }`}
-                        >
-                          {dailyTarget}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={isBusy || dailyTarget >= 50}
-                          aria-label={t("page.targetIncrease", locale)}
-                          onClick={() => {
-                            void onUpdatePackageDailyTarget(
-                              item.id,
-                              "increase",
-                            );
-                          }}
-                          className={`rounded px-1.5 py-0.5 text-[11px] font-semibold transition-colors ${
-                            isSelected
-                              ? "bg-white/10 text-white hover:bg-white/20"
-                              : "bg-emerald-900/15 text-emerald-900 hover:bg-emerald-900/25"
-                          } disabled:cursor-not-allowed disabled:opacity-50`}
-                        >
-                          +
-                        </button>
-                      </div>
+                    <div className="mt-2">
                       <button
                         type="button"
                         disabled={isBusy}
                         onClick={() => {
-                          void onUpdatePackageStatus(item.id, "active");
+                          void onStartPackage(item.id);
                         }}
                         className={`rounded-md px-2 py-1 text-[11px] font-semibold transition-colors ${
                           isSelected
@@ -358,34 +274,6 @@ export function SourceSheet({
                         {status === "active"
                           ? t("page.resume", locale)
                           : t("page.start", locale)}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isBusy}
-                        onClick={() => {
-                          void onUpdatePackageStatus(item.id, "paused");
-                        }}
-                        className={`rounded-md px-2 py-1 text-[11px] font-semibold transition-colors ${
-                          isSelected
-                            ? "bg-white/10 text-white hover:bg-white/20"
-                            : "bg-emerald-900/15 text-emerald-900 hover:bg-emerald-900/25"
-                        } disabled:cursor-not-allowed disabled:opacity-60`}
-                      >
-                        {t("page.pause", locale)}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isBusy}
-                        onClick={() => {
-                          void onUpdatePackageStatus(item.id, "completed");
-                        }}
-                        className={`rounded-md px-2 py-1 text-[11px] font-semibold transition-colors ${
-                          isSelected
-                            ? "bg-white/10 text-white hover:bg-white/20"
-                            : "bg-emerald-900/15 text-emerald-900 hover:bg-emerald-900/25"
-                        } disabled:cursor-not-allowed disabled:opacity-60`}
-                      >
-                        {t("page.complete", locale)}
                       </button>
                     </div>
                   </div>
