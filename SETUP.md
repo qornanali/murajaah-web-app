@@ -31,6 +31,12 @@ Recommended optional values:
 QF_ENV=prelive
 NEXT_PUBLIC_DEFAULT_RECITATION_ID=7
 NEXT_PUBLIC_AUDIO_CDN_BASE=https://audio.qurancdn.com
+
+# Optional when implementing Quran Foundation User API features
+QF_USER_SCOPE=user
+# QF_USER_CLIENT_ID=your-user-scope-client-id
+# QF_USER_CLIENT_SECRET=your-user-scope-client-secret
+# QF_USER_API_BASE_PATH=/user/api/v1
 ```
 
 ## 3) Apply Supabase Migrations

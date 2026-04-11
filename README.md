@@ -57,6 +57,12 @@ Optional variables:
 - `QF_ENV` (`prelive` or `production`, default is `prelive`)
 - `QF_API_BASE_URL`
 - `QF_AUTH_BASE_URL`
+- `QF_USER_CLIENT_ID` (falls back to `QF_CLIENT_ID`)
+- `QF_USER_CLIENT_SECRET` (falls back to `QF_CLIENT_SECRET`)
+- `QF_USER_SCOPE` (default: `user`)
+- `QF_USER_API_BASE_URL`
+- `QF_USER_AUTH_BASE_URL`
+- `QF_USER_API_BASE_PATH` (default: `/user/api/v1`)
 - `QF_CACHE_MAX_AGE`
 - `QF_CACHE_S_MAXAGE_CHAPTERS`
 - `QF_CACHE_SWR_CHAPTERS`
