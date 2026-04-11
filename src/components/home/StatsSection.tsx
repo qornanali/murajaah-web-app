@@ -9,6 +9,8 @@ interface StatsSectionProps {
   locale: AppLocale;
   reviewedVerseKeys: Set<string>;
   newVerseKeysToday: Set<string>;
+  currentStreak: number;
+  longestStreak: number;
   visibleDueQueue: AyahProgressRow[];
   activePackagesCount: number;
   averageEaseFactor: number | null;
@@ -33,6 +35,8 @@ export function StatsSection({
   locale,
   reviewedVerseKeys,
   newVerseKeysToday,
+  currentStreak,
+  longestStreak,
   visibleDueQueue,
   activePackagesCount,
   averageEaseFactor,
@@ -59,7 +63,7 @@ export function StatsSection({
       </div>
 
       <div className="space-y-4">
-        <section className="grid grid-cols-3 gap-2 md:grid-cols-5 md:gap-3">
+        <section className="grid grid-cols-3 gap-2 md:grid-cols-7 md:gap-3">
           <div className="rounded-[20px] border border-emerald-900/15 bg-white/65 p-3 text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm md:rounded-[24px] md:p-4 dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
             <p className="text-[10px] font-medium leading-tight text-emerald-900/65 md:text-[11px] dark:text-emerald-200/65">
               {t("page.totalReviewedVerses", locale)}
@@ -89,6 +93,18 @@ export function StatsSection({
               {t("page.activePackagesCount", locale)}
             </p>
             <p className="mt-2 text-2xl font-semibold">{activePackagesCount}</p>
+          </div>
+          <div className="hidden rounded-[24px] border border-emerald-900/15 bg-white/65 p-4 text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm md:block dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+            <p className="text-[11px] font-medium leading-tight text-emerald-900/65 dark:text-emerald-200/65">
+              {t("page.currentStreak", locale)}
+            </p>
+            <p className="mt-2 text-2xl font-semibold">{currentStreak}</p>
+          </div>
+          <div className="hidden rounded-[24px] border border-emerald-900/15 bg-white/65 p-4 text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm md:block dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
+            <p className="text-[11px] font-medium leading-tight text-emerald-900/65 dark:text-emerald-200/65">
+              {t("page.longestStreak", locale)}
+            </p>
+            <p className="mt-2 text-2xl font-semibold">{longestStreak}</p>
           </div>
           <div className="hidden rounded-[24px] border border-emerald-900/15 bg-white/65 p-4 text-emerald-950 shadow-[0_20px_60px_-36px_rgba(6,78,59,0.45)] backdrop-blur-sm md:block dark:border-emerald-200/15 dark:bg-emerald-950/60 dark:text-emerald-100">
             <p className="text-[11px] font-medium leading-tight text-emerald-900/65 dark:text-emerald-200/65">

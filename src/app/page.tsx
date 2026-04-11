@@ -14,6 +14,7 @@ import { SourceSheet } from "@/components/home/SourceSheet";
 import { toUserError } from "@/lib/errorHandling";
 import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
+import { calculateStreakFromIsoDates } from "@/lib/streak";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
   fetchPublishedMemorizationPackages,
@@ -109,12 +110,16 @@ export default function Home() {
   const [newVerseKeysToday, setNewVerseKeysToday] = useState<Set<string>>(
     new Set(),
   );
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [longestStreak, setLongestStreak] = useState(0);
   const [averageEaseFactor, setAverageEaseFactor] = useState<number | null>(
     null,
   );
   const [packageActionId, setPackageActionId] = useState<string | null>(null);
   const [selectedSurahNumber, setSelectedSurahNumber] = useState(1);
-  const [activeSurahTrackNumbers, setActiveSurahTrackNumbers] = useState<number[]>([]);
+  const [activeSurahTrackNumbers, setActiveSurahTrackNumbers] = useState<
+    number[]
+  >([]);
   const [confirmReset, setConfirmReset] = useState<{
     trackId: string;
     verseKeys: Set<string>;
@@ -370,7 +375,7 @@ export default function Home() {
     };
 
     void loadSurahTracks();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticatedUserId, guestUserId]);
 
   useEffect(() => {
@@ -455,6 +460,8 @@ export default function Home() {
       if (!activeUserId) {
         setReviewedVerseKeys(new Set());
         setNewVerseKeysToday(new Set());
+        setCurrentStreak(0);
+        setLongestStreak(0);
         return;
       }
 
@@ -472,18 +479,24 @@ export default function Home() {
 
       const reviewed = new Set<string>();
       const newToday = new Set<string>();
+      const updatedAtDates: string[] = [];
 
       allRows.forEach((row) => {
         const verseKey = toVerseKey(row.surahNumber, row.ayahNumber);
         reviewed.add(verseKey);
+        updatedAtDates.push(row.updatedAt);
 
         if (row.updatedAt >= startOfDay && row.repetitions <= 1) {
           newToday.add(verseKey);
         }
       });
 
+      const streak = calculateStreakFromIsoDates(updatedAtDates);
+
       setReviewedVerseKeys(reviewed);
       setNewVerseKeysToday(newToday);
+      setCurrentStreak(streak.current);
+      setLongestStreak(streak.longest);
       setAverageEaseFactor(
         allRows.length > 0
           ? Number(
@@ -497,7 +510,7 @@ export default function Home() {
     };
 
     void loadProgressState();
-  }, [activeUserId]);
+  }, [activeUserId, latestProgress?.updatedAt]);
 
   useEffect(() => {
     if (activeUserId) {
@@ -589,9 +602,7 @@ export default function Home() {
     setIsSourceSheetOpen(true);
   };
 
-  const updatePackageStatus = async (
-    packageId: string,
-  ) => {
+  const updatePackageStatus = async (packageId: string) => {
     if (!activeUserId) {
       return;
     }
@@ -636,9 +647,7 @@ export default function Home() {
     router.push(`/practice/surah/${surahNumber}`);
   };
 
-  const computeOtherActiveVerseKeys = (
-    excludeTrackId: string,
-  ): Set<string> => {
+  const computeOtherActiveVerseKeys = (excludeTrackId: string): Set<string> => {
     const other = new Set<string>();
 
     packages
@@ -848,6 +857,8 @@ export default function Home() {
           locale={locale}
           reviewedVerseKeys={reviewedVerseKeys}
           newVerseKeysToday={newVerseKeysToday}
+          currentStreak={currentStreak}
+          longestStreak={longestStreak}
           visibleDueQueue={visibleDueQueue}
           activePackagesCount={activePackagesCount}
           averageEaseFactor={averageEaseFactor}

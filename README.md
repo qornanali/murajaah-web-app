@@ -7,6 +7,7 @@ Murajaah is an offline-first Quran memorization web app that combines guided rec
 - Practice flow with ratings: `Again`, `Hard`, `Good`, `Easy`
 - Progressive ayah reveal using Waqf chunking
 - Due-review queue powered by SM-2 scheduling
+- Current/longest streak metrics from review activity
 - Surah tracks and package-based tracks
 - Guest mode (local-only) and authenticated mode (Supabase sync)
 - Offline queue via IndexedDB (Dexie) with background sync when online

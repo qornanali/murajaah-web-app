@@ -64,6 +64,7 @@ Open http://localhost:3000.
 3. Ratings (`Again`, `Hard`, `Good`, `Easy`) update queue.
 4. Offline write queue is created while online/offline toggles.
 5. Login screen works with Supabase auth when `?auth=1` is present.
+6. Stats section shows current and longest streak values after reviews.
 
 ## Troubleshooting
 
