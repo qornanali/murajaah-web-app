@@ -1,60 +1,66 @@
-# Murajaah — Offline-First Quran Memorization
+# Murajaah Setup
 
-## Environment Setup
+This guide is the fastest way to run the app locally.
 
-Copy `.env.example` to `.env.local` and fill in your Supabase credentials:
+## 1) Install
+
+```bash
+git clone <your-repo-url>
+cd murajaah-web-app
+npm install
+```
+
+## 2) Configure Environment
 
 ```bash
 cp .env.example .env.local
 ```
 
-Then populate `.env.local`:
+Minimum required values in `.env.local`:
 
-```
+```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
-NEXT_PUBLIC_QURAN_API_BASE=https://api.quran.com/api/v4
+QF_CLIENT_ID=your-qf-client-id
+QF_CLIENT_SECRET=your-qf-client-secret
 ```
 
-## Database Migrations
+Recommended optional values:
 
-1. Create a new Supabase project at [supabase.com](https://supabase.com).
-2. Apply all SQL files in `supabase/migrations` using your preferred workflow (Supabase CLI, SQL Editor, or CI/CD pipeline).
-3. Run migrations in filename order and apply pending migrations whenever the project updates.
-4. Verify `ayah_progress` exists, and its RLS/policies are active.
+```env
+QF_ENV=prelive
+NEXT_PUBLIC_DEFAULT_RECITATION_ID=7
+NEXT_PUBLIC_AUDIO_CDN_BASE=https://audio.qurancdn.com
+```
 
-## Development
+## 3) Apply Supabase Migrations
+
+Apply all files in `supabase/migrations` in filename order.
+
+Checklist:
+
+1. Create a Supabase project.
+2. Run every migration file.
+3. Confirm tables/policies are present (`ayah_progress`, `memorization_packages`, `user_surah_tracks`, related RLS updates).
+
+## 4) Run App
 
 ```bash
-# Install dependencies
-npm install
-
-# Run development server
 npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see the demo.
+Open http://localhost:3000.
 
-## Architecture
+## 5) Verify Core Flows
 
-- **Frontend**: Next.js 14+ (App Router, TypeScript)
-- **Styling**: Tailwind CSS + Sacred Minimalism design
-- **Offline**: Dexie.js for local IndexedDB with sync queue
-- **State**: Zustand for global review store
-- **Backend**: Supabase (PostgreSQL + Auth)
-- **SRS**: SM-2 algorithm with configurable ease factor
+1. Home page loads and source sheet opens.
+2. Quran ayah fetch works in practice mode.
+3. Ratings (`Again`, `Hard`, `Good`, `Easy`) update queue.
+4. Offline write queue is created while online/offline toggles.
+5. Login screen works with Supabase auth when `?auth=1` is present.
 
-## Key Files
+## Troubleshooting
 
-- `src/lib/srs.ts` — SM-2 algorithm implementation
-- `src/lib/quranUtils.ts` — Waqf-based ayah chunking
-- `src/lib/offline/db.ts` — Dexie IndexedDB schema
-- `src/lib/offline/sync.ts` — Offline-first sync queue processor
-- `src/store/reviewStore.ts` — Zustand review workflow
-- `src/components/quran/AyahCard.tsx` — Reveal/rating UI
+- `Supabase not configured`: check `NEXT_PUBLIC_SUPABASE_URL` and publishable/anon key.
+- Quran proxy errors (`/api/quran/*`): verify `QF_CLIENT_ID` and `QF_CLIENT_SECRET`.
+- Missing data/policy errors: re-check migration order and applied status.

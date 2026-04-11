@@ -1,185 +1,125 @@
 # Murajaah Web App
 
-Offline-first Quran memorization app using SM-2 spaced repetition.
+Murajaah is an offline-first Quran memorization web app that combines guided recall practice with SM-2 spaced repetition.
 
-## Tech Stack
+## Product Snapshot
+
+- Practice flow with ratings: `Again`, `Hard`, `Good`, `Easy`
+- Progressive ayah reveal using Waqf chunking
+- Due-review queue powered by SM-2 scheduling
+- Surah tracks and package-based tracks
+- Guest mode (local-only) and authenticated mode (Supabase sync)
+- Offline queue via IndexedDB (Dexie) with background sync when online
+- EN/ID localization and light/dark theme support
+
+## Stack
 
 - Next.js 14 (App Router, TypeScript)
+- React 18
 - Supabase (PostgreSQL + Auth)
-- Dexie.js (IndexedDB) for offline storage + sync queue
-- Zustand for state management
-- Tailwind CSS for styling
-- Quran.com API v4 for Uthmani text and audio
+- Dexie (offline store + sync queue)
+- Zustand (state management)
+- Tailwind CSS
+- Quran Foundation content APIs (proxied via Next.js API routes)
 
-## Features
+## Prerequisites
 
-- SM-2 rating flow (`Again`, `Hard`, `Good`, `Easy`) with per-button preview info:
-  - next review timing
-  - effect on repetition count and ease factor
-- Ayah practice card:
-  - optional hint toggle (ratings are always available)
-  - progressive reveal by Waqf marks
-  - surah name display (for context, e.g. `112:1` → `Al-Ikhlas`)
-- Auto-advance to next ayah after rating (with surah rollover)
-- Due review queue based on `nextReviewDate`
-- Practice-first home layout (mobile-friendly)
-- Source picker bottom sheet with dual flow:
-  - direct surah practice
-  - learning package practice
-- Public learning package catalog (no sign-in required)
-- Learning package status with `Start/Resume`, `Pause`, `Complete`:
-  - authenticated users synced to Supabase
-  - guest users persisted locally
-- Surah/package search in source picker
-- Package pagination in source picker
-- Offline-first review writes to Dexie with background sync to Supabase
-- Supabase authentication (sign up / sign in / sign out) + continue as guest
-- Quran.com ayah fetch (Uthmani text + audio)
-- EN/ID localization
-- Light/dark mode (icon toggle on home and auth screens)
-- Branded SVG logo + icon
-- Header info center modal (source, credit, legal, feedback)
-- Methodology section with Anki inspiration reference
-
-## 1) Prerequisites
-
-- Node.js 18+ (recommended: Node 20 LTS)
+- Node.js 18+ (Node.js 20 LTS recommended)
 - npm 9+
-- A Supabase project
+- Supabase project
+- Quran Foundation API client credentials (for `/api/quran/*` server routes)
 
-## 2) Clone and Install
+## Quick Start
 
 ```bash
 git clone <your-repo-url>
 cd murajaah-web-app
 npm install
-```
-
-## 3) Configure Environment Variables
-
-Copy the template:
-
-```bash
 cp .env.example .env.local
+npm run dev
 ```
 
-Set values in `.env.local`:
+Open http://localhost:3000.
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+For a short onboarding checklist, see `SETUP.md`.
 
-# Quran Foundation environment selection
-# Allowed values: prelive | production
-QF_ENV=prelive
+## Environment Variables
 
-# Optional explicit base URL overrides (server-side only)
-# If set, these take precedence over QF_ENV mapping.
-QF_API_BASE_URL=https://apis-prelive.quran.foundation
-QF_AUTH_BASE_URL=https://prelive-oauth2.quran.foundation
+Required variables:
 
-# Quran Foundation OAuth2 client credentials (server-side only)
-QF_CLIENT_ID=your-qf-client-id
-QF_CLIENT_SECRET=your-qf-client-secret
-```
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
+- `QF_CLIENT_ID`
+- `QF_CLIENT_SECRET`
+
+Optional variables:
+
+- `QF_ENV` (`prelive` or `production`, default is `prelive`)
+- `QF_API_BASE_URL`
+- `QF_AUTH_BASE_URL`
+- `QF_CACHE_MAX_AGE`
+- `QF_CACHE_S_MAXAGE_CHAPTERS`
+- `QF_CACHE_SWR_CHAPTERS`
+- `QF_CACHE_S_MAXAGE_VERSES`
+- `QF_CACHE_SWR_VERSES`
+- `NEXT_PUBLIC_DEFAULT_RECITATION_ID`
+- `NEXT_PUBLIC_AUDIO_CDN_BASE`
 
 Notes:
 
 - `NEXT_PUBLIC_*` variables are exposed to the browser.
-- `QF_CLIENT_SECRET` must remain server-side only.
-- You can copy values directly from `.env.example` and replace placeholders.
+- Keep `QF_CLIENT_SECRET` server-side only.
+- Never expose Supabase service role keys in frontend/runtime client code.
 
-## 4) Apply Database Migrations (Supabase)
+## Database Setup
 
-Apply all SQL files in `supabase/migrations` to your Supabase database.
+Apply all SQL files in `supabase/migrations` in filename order.
 
-Recommended approach:
+- Recommended workflow: Supabase CLI, SQL Editor, or CI/CD migrations.
+- Re-apply new pending migrations whenever pulling updates.
 
-- Run migrations in filename order.
-- Re-run pending migrations whenever the project updates.
-- Use your normal migration workflow (Supabase CLI, SQL Editor, or CI/CD pipeline).
-
-This keeps schema, constraints, and RLS policies aligned with the app code.
-
-Tip: `SETUP.md` contains a shorter onboarding version of these setup steps.
-
-## 5) Run Locally
-
-Start development server:
+## Scripts
 
 ```bash
 npm run dev
-```
-
-Open:
-
-- http://localhost:3000
-
-Useful commands:
-
-```bash
 npm run build
-npm start
+npm run start
 npm run lint
 ```
 
-If local build fails, verify:
+## Architecture Notes
 
-- all required environment variables are set in `.env.local`
-- Supabase migrations are applied
-- your Node/npm versions match prerequisites
+- Client ayah fetches go through internal routes:
+  - `GET /api/quran/chapters`
+  - `GET /api/quran/verses/by_key/[verseKey]`
+- Internal routes call Quran Foundation APIs using OAuth2 token flow in server-only code.
+- Review writes are stored in Dexie first, then synced to Supabase using a retrying queue.
+- Guest progress is intentionally local-only.
 
-## Memorization Methodology
+## Project Layout
 
-Murajaah flow in this app:
+- `src/app` App Router pages and API routes
+- `src/components` feature UI components
+- `src/lib/srs.ts` SM-2 implementation
+- `src/lib/quranApi.ts` client Quran request helpers
+- `src/lib/qf/contentApi.ts` server-side Quran Foundation OAuth/content client
+- `src/lib/offline` Dexie schema and sync logic
+- `src/lib/packages` package catalog and enrollment logic
+- `src/lib/supabase` Supabase client/auth helpers
+- `src/store` Zustand stores
+- `supabase/migrations` schema and policy migrations
 
-1. Recall first without looking.
-2. Use hint only when needed.
-3. Rate honestly (`Again`, `Hard`, `Good`, `Easy`).
-4. Let spaced repetition schedule the next review automatically.
+## PRD Summary and AI Context
 
-Inspired by Anki's spaced-repetition workflow:
+AI-focused project context lives in `docs/ai`:
 
-- https://apps.ankiweb.net/
+- `docs/ai/PRD_SUMMARY.md`
+- `docs/ai/CODING_BEST_PRACTICES.md`
+- `docs/ai/AGENT_WORKFLOW.md`
 
-## Data Source and Disclaimer
+## Security Notes
 
-- Main Quran text/audio source: Quran Foundation APIs
-- Learning package metadata source: Supabase (`memorization_packages`)
-- Always verify recitation and text with your mushaf.
-
-## Deployment Recommendation
-
-Recommended host: **Vercel** (best fit for Next.js App Router), paired with Supabase.
-
-Alternative hosts:
-
-- Cloudflare Pages
-- Netlify
-
-## Project Structure
-
-- `src/app` — App Router pages (`/`, `/login`)
-- `src/components/quran` — Quran UI components
-- `src/lib/srs.ts` — SM-2 logic
-- `src/lib/quranUtils.ts` — Waqf chunking utility
-- `src/lib/quranApi.ts` — Quran.com API client
-- `src/lib/quranMeta.ts` — Surah metadata (names)
-- `src/lib/offline` — Dexie DB + background sync
-- `src/lib/supabase` — Supabase client/auth helpers
-- `src/store` — Zustand stores
-
-## Notes
-
-- Quran.com public read endpoints used here do not require an API key.
-- Offline reviews are saved locally first and synced when online.
-- Guest mode allows local-only progress without requiring login.
-- Published packages are readable publicly; guest package status is stored in local storage.
-
-## Security Checklist
-
-- Keep `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in frontend only; never expose service role keys.
-- Apply all migrations in `supabase/migrations` before running the app.
-- Ensure RLS is enabled and forced for `ayah_progress`.
-- Use Supabase Auth protections: email confirmation, strong password requirements, optional MFA.
-- Monitor Supabase logs and rotate keys if abuse is detected.
+- Keep secrets out of client code and logs.
+- Validate and sanitize all external inputs.
+- Keep Supabase RLS and policies aligned with migration files.
+- Use principle of least privilege for all API/database credentials.
