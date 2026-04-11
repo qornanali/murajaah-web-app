@@ -1,44 +1,48 @@
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-
 export async function fetchUserSurahTracks(userId: string): Promise<number[]> {
-  const supabase = getSupabaseBrowserClient();
+  const _ = userId;
+  void _;
 
-  if (!supabase) {
-    throw new Error("Supabase credentials are missing");
+  const response = await fetch("/api/user/surah-tracks", {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string;
+    } | null;
+    throw new Error(payload?.message ?? "Unable to load surah tracks");
   }
 
-  const { data, error } = await supabase
-    .from("user_surah_tracks")
-    .select("surah_number")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data ?? []).map((row: { surah_number: number }) => row.surah_number);
+  const payload = (await response.json()) as { tracks?: number[] };
+  return Array.isArray(payload.tracks) ? payload.tracks : [];
 }
 
 export async function addUserSurahTrack(
   userId: string,
   surahNumber: number,
 ): Promise<void> {
-  const supabase = getSupabaseBrowserClient();
+  const _ = userId;
+  void _;
 
-  if (!supabase) {
-    throw new Error("Supabase credentials are missing");
-  }
+  const response = await fetch("/api/user/surah-tracks", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+    body: JSON.stringify({ surahNumber }),
+  });
 
-  const { error } = await supabase
-    .from("user_surah_tracks")
-    .upsert(
-      { user_id: userId, surah_number: surahNumber },
-      { onConflict: "user_id,surah_number", ignoreDuplicates: true },
-    );
-
-  if (error) {
-    throw new Error(error.message);
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string;
+    } | null;
+    throw new Error(payload?.message ?? "Unable to save surah track");
   }
 }
 
@@ -46,19 +50,23 @@ export async function removeUserSurahTrack(
   userId: string,
   surahNumber: number,
 ): Promise<void> {
-  const supabase = getSupabaseBrowserClient();
+  const _ = userId;
+  void _;
 
-  if (!supabase) {
-    throw new Error("Supabase credentials are missing");
-  }
+  const response = await fetch("/api/user/surah-tracks", {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+    body: JSON.stringify({ surahNumber }),
+  });
 
-  const { error } = await supabase
-    .from("user_surah_tracks")
-    .delete()
-    .eq("user_id", userId)
-    .eq("surah_number", surahNumber);
-
-  if (error) {
-    throw new Error(error.message);
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string;
+    } | null;
+    throw new Error(payload?.message ?? "Unable to remove surah track");
   }
 }

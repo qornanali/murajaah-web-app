@@ -155,9 +155,10 @@ export default function Home() {
   });
 
   const authenticatedUserId = user?.id;
+  const persistedUserId = authenticatedUserId ?? qfSession.appUserId;
   const isQfLinked = qfSession.linked;
-  const activeUserId = user?.id ?? guestUserId;
-  const isGuestMode = !user && !isQfLinked && Boolean(guestUserId);
+  const activeUserId = persistedUserId ?? guestUserId;
+  const isGuestMode = !persistedUserId && Boolean(guestUserId);
 
   const normalizedSurahSearch = surahSearch.trim().toLowerCase();
   const normalizedPackageSearch = packageSearch.trim().toLowerCase();
@@ -385,12 +386,12 @@ export default function Home() {
         return;
       }
 
-      if (!authenticatedUserId) {
+      if (!persistedUserId) {
         return;
       }
 
       try {
-        const tracks = await fetchUserSurahTracks(authenticatedUserId);
+        const tracks = await fetchUserSurahTracks(persistedUserId);
         setActiveSurahTrackNumbers(tracks);
       } catch {
         setActiveSurahTrackNumbers([]);
@@ -399,7 +400,7 @@ export default function Home() {
 
     void loadSurahTracks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticatedUserId, guestUserId]);
+  }, [persistedUserId, guestUserId]);
 
   useEffect(() => {
     if (isInitialized && !hasSeenOnboardingModal) {
@@ -409,11 +410,11 @@ export default function Home() {
 
   useEffect(() => {
     const loadEnrollments = async () => {
-      if (!authenticatedUserId && !guestUserId) {
+      if (!persistedUserId && !guestUserId) {
         return;
       }
 
-      if (!authenticatedUserId && guestUserId) {
+      if (!persistedUserId && guestUserId) {
         const statusStorageKey = `${GUEST_PACKAGE_STATUS_PREFIX}.${guestUserId}`;
         const rawStatus = window.localStorage.getItem(statusStorageKey);
 
@@ -433,13 +434,13 @@ export default function Home() {
 
         return;
       }
-      if (!authenticatedUserId) {
+      if (!persistedUserId) {
         return;
       }
 
       try {
         const enrollmentMap =
-          await fetchUserPackageEnrollments(authenticatedUserId);
+          await fetchUserPackageEnrollments(persistedUserId);
         setPackageStatusById(
           Object.entries(enrollmentMap).reduce<
             Record<string, PackageEnrollmentStatus>
@@ -455,11 +456,11 @@ export default function Home() {
     };
 
     void loadEnrollments();
-  }, [authenticatedUserId, guestUserId]);
+  }, [persistedUserId, guestUserId]);
 
   useEffect(() => {
     const loadUserApiStatus = async () => {
-      if (!authenticatedUserId && !isQfLinked) {
+      if (!persistedUserId && !isQfLinked) {
         setIsUserApiConnected(null);
         return;
       }
@@ -469,7 +470,7 @@ export default function Home() {
     };
 
     void loadUserApiStatus();
-  }, [authenticatedUserId, isQfLinked]);
+  }, [persistedUserId, isQfLinked]);
 
   useEffect(() => {
     if (!isGuestMode || !guestUserId) {
@@ -618,14 +619,14 @@ export default function Home() {
 
         const next = [surahNumber, ...previous].slice(0, 24);
 
-        if (user?.id) {
-          void addUserSurahTrack(user.id, surahNumber);
+        if (persistedUserId && !isGuestMode) {
+          void addUserSurahTrack(persistedUserId, surahNumber);
         }
 
         return next;
       });
     },
-    [user],
+    [persistedUserId, isGuestMode],
   );
 
   const handleOpenSurah = () => {
@@ -648,8 +649,12 @@ export default function Home() {
     setPackagesError(null);
 
     try {
-      if (user?.id) {
-        await setUserPackageEnrollmentStatus(user.id, packageId, "active");
+      if (persistedUserId && !isGuestMode) {
+        await setUserPackageEnrollmentStatus(
+          persistedUserId,
+          packageId,
+          "active",
+        );
       }
 
       setPackageStatusById((prev) => ({
@@ -735,8 +740,12 @@ export default function Home() {
         return next;
       });
 
-      if (user?.id) {
-        void setUserPackageEnrollmentStatus(user.id, packageId, "paused");
+      if (persistedUserId && !isGuestMode) {
+        void setUserPackageEnrollmentStatus(
+          persistedUserId,
+          packageId,
+          "paused",
+        );
       }
 
       if (selectedPackageId === packageId) {
@@ -753,8 +762,8 @@ export default function Home() {
         previous.filter((item) => item !== surahNumber),
       );
 
-      if (user?.id) {
-        void removeUserSurahTrack(user.id, surahNumber);
+      if (persistedUserId && !isGuestMode) {
+        void removeUserSurahTrack(persistedUserId, surahNumber);
       }
     }
 

@@ -69,22 +69,28 @@ export async function fetchPublishedMemorizationPackages(): Promise<
 export async function fetchUserPackageEnrollments(
   userId: string,
 ): Promise<Record<string, UserPackageEnrollment>> {
-  const supabase = getSupabaseBrowserClient();
+  const _ = userId;
+  void _;
 
-  if (!supabase) {
-    throw new Error("Supabase credentials are missing");
+  const response = await fetch("/api/user/package-enrollments", {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string;
+    } | null;
+    throw new Error(payload?.message ?? "Unable to load package enrollments");
   }
 
-  const { data, error } = await supabase
-    .from("user_memorization_packages")
-    .select("package_id,status,daily_new_target")
-    .eq("user_id", userId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const rows = (data ?? []) as UserMemorizationPackageRecord[];
+  const payload = (await response.json()) as {
+    rows?: UserMemorizationPackageRecord[];
+  };
+  const rows = (payload.rows ?? []) as UserMemorizationPackageRecord[];
 
   return rows.reduce<Record<string, UserPackageEnrollment>>((acc, row) => {
     acc[row.package_id] = {
@@ -100,26 +106,27 @@ export async function setUserPackageEnrollmentStatus(
   packageId: string,
   status: PackageEnrollmentStatus,
 ): Promise<void> {
-  const supabase = getSupabaseBrowserClient();
+  const _ = userId;
+  void _;
 
-  if (!supabase) {
-    throw new Error("Supabase credentials are missing");
-  }
-
-  const { error } = await supabase.from("user_memorization_packages").upsert(
-    {
-      user_id: userId,
-      package_id: packageId,
+  const response = await fetch("/api/user/package-enrollments", {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+    body: JSON.stringify({
+      packageId,
       status,
-      updated_at: new Date().toISOString(),
-    },
-    {
-      onConflict: "user_id,package_id",
-    },
-  );
+    }),
+  });
 
-  if (error) {
-    throw new Error(error.message);
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string;
+    } | null;
+    throw new Error(payload?.message ?? "Unable to save package status");
   }
 }
 
@@ -136,25 +143,26 @@ export async function setUserPackageDailyNewTarget(
     throw new Error("Daily new target must be between 0 and 50");
   }
 
-  const supabase = getSupabaseBrowserClient();
+  const _ = userId;
+  void _;
 
-  if (!supabase) {
-    throw new Error("Supabase credentials are missing");
-  }
-
-  const { error } = await supabase.from("user_memorization_packages").upsert(
-    {
-      user_id: userId,
-      package_id: packageId,
-      daily_new_target: dailyNewTarget,
-      updated_at: new Date().toISOString(),
+  const response = await fetch("/api/user/package-enrollments", {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
     },
-    {
-      onConflict: "user_id,package_id",
-    },
-  );
+    cache: "no-store",
+    body: JSON.stringify({
+      packageId,
+      dailyNewTarget,
+    }),
+  });
 
-  if (error) {
-    throw new Error(error.message);
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string;
+    } | null;
+    throw new Error(payload?.message ?? "Unable to save daily target");
   }
 }

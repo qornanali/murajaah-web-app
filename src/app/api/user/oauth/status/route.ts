@@ -63,6 +63,9 @@ export async function GET(request: NextRequest) {
 
     return response;
   } catch {
-    return NextResponse.json({ linked: false }, { status: 200 });
+    const response = NextResponse.json({ linked: false }, { status: 200 });
+    response.cookies.delete(QF_OAUTH_COOKIES.userId);
+    response.cookies.delete(QF_OAUTH_COOKIES.appUserId);
+    return response;
   }
 }
