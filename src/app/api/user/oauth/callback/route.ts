@@ -9,6 +9,7 @@ import {
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { migrateAllGuestDataToUser } from "@/lib/qf/guestMigration";
 import { getGuestUserId } from "@/lib/guest";
+import { SESSION_COOKIE_MAX_AGE } from "@/lib/config";
 
 function clearOAuthCookies(response: NextResponse) {
   response.cookies.delete(QF_OAUTH_COOKIES.state);
@@ -130,7 +131,7 @@ export async function GET(request: NextRequest) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 30,
+      maxAge: SESSION_COOKIE_MAX_AGE,
     });
 
     response.cookies.set(QF_OAUTH_COOKIES.appUserId, appUser.id, {
@@ -138,7 +139,7 @@ export async function GET(request: NextRequest) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 30,
+      maxAge: SESSION_COOKIE_MAX_AGE,
     });
 
     return response;

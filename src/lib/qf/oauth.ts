@@ -1,8 +1,15 @@
 import "server-only";
 
 import { createHash, randomBytes } from "crypto";
-
-type QfEnv = "prelive" | "production";
+import {
+  QF_USER_API_BASE,
+  QF_USER_AUTH_BASE,
+  QF_USER_API_BASE_PATH,
+  QF_USER_OAUTH_SCOPE,
+  QF_USER_PROFILE_PATH,
+  QF_CLIENT_ID,
+  QF_CLIENT_SECRET,
+} from "@/lib/config";
 
 interface QfOAuthConfig {
   authBaseUrl: string;
@@ -33,20 +40,6 @@ interface QfResolvedIdentity {
   qfSub: string | null;
 }
 
-const AUTH_BASE_BY_ENV: Record<QfEnv, string> = {
-  prelive: "https://prelive-oauth2.quran.foundation",
-  production: "https://oauth2.quran.foundation",
-};
-
-const API_BASE_BY_ENV: Record<QfEnv, string> = {
-  prelive: "https://apis-prelive.quran.foundation",
-  production: "https://apis.quran.foundation",
-};
-
-const DEFAULT_SCOPE = "openid offline_access user bookmark";
-const DEFAULT_API_BASE_PATH = "/user/api/v1";
-const DEFAULT_PROFILE_PATH = "/profile";
-
 export const QF_OAUTH_COOKIES = {
   state: "qf_oauth_state",
   nonce: "qf_oauth_nonce",
@@ -54,10 +47,6 @@ export const QF_OAUTH_COOKIES = {
   userId: "qf_user_id",
   appUserId: "qf_app_user_id",
 } as const;
-
-function normalizeBaseUrl(url: string): string {
-  return url.trim().replace(/\/+$/, "");
-}
 
 function normalizePath(path: string, fallback: string): string {
   const normalized = path.trim() || fallback;
@@ -67,46 +56,23 @@ function normalizePath(path: string, fallback: string): string {
   return withLeadingSlash.replace(/\/+$/, "");
 }
 
-function getEnvironment(): QfEnv {
-  return process.env.QF_ENV === "production" ? "production" : "prelive";
-}
-
 export function getQfOAuthConfig(requestOrigin: string): QfOAuthConfig {
-  const env = getEnvironment();
-  const clientId = process.env.QF_USER_CLIENT_ID ?? process.env.QF_CLIENT_ID;
-  const clientSecret =
-    process.env.QF_USER_CLIENT_SECRET ?? process.env.QF_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
+  if (!QF_CLIENT_ID || !QF_CLIENT_SECRET) {
     throw new Error("Missing Quran.com OAuth credentials");
   }
 
-  const configuredAuthBase = process.env.QF_USER_AUTH_BASE_URL;
-  const configuredApiBase = process.env.QF_USER_API_BASE_URL;
-
-  const authBaseUrl = configuredAuthBase?.trim()
-    ? normalizeBaseUrl(configuredAuthBase)
-    : AUTH_BASE_BY_ENV[env];
-
-  const apiBaseUrl = configuredApiBase?.trim()
-    ? normalizeBaseUrl(configuredApiBase)
-    : API_BASE_BY_ENV[env];
-
   const redirectUri =
     process.env.QF_USER_OAUTH_REDIRECT_URI?.trim() ||
-    `${normalizeBaseUrl(requestOrigin)}/api/user/oauth/callback`;
+    `${requestOrigin.trim().replace(/\/+$/, "")}/api/user/oauth/callback`;
 
   return {
-    authBaseUrl,
-    apiBaseUrl,
-    apiBasePath: normalizePath(
-      process.env.QF_USER_API_BASE_PATH ?? DEFAULT_API_BASE_PATH,
-      DEFAULT_API_BASE_PATH,
-    ),
-    clientId,
-    clientSecret,
+    authBaseUrl: QF_USER_AUTH_BASE,
+    apiBaseUrl: QF_USER_API_BASE,
+    apiBasePath: normalizePath(QF_USER_API_BASE_PATH, "/user/api/v1"),
+    clientId: QF_CLIENT_ID,
+    clientSecret: QF_CLIENT_SECRET,
     redirectUri,
-    scope: process.env.QF_USER_OAUTH_SCOPE?.trim() || DEFAULT_SCOPE,
+    scope: QF_USER_OAUTH_SCOPE,
   };
 }
 
@@ -211,10 +177,7 @@ export async function resolveQfIdentity(params: {
     }
   }
 
-  const profilePath = normalizePath(
-    process.env.QF_USER_PROFILE_PATH ?? DEFAULT_PROFILE_PATH,
-    DEFAULT_PROFILE_PATH,
-  );
+  const profilePath = normalizePath(QF_USER_PROFILE_PATH, "/profile");
 
   let apiUserId: string | null = null;
 

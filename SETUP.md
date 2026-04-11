@@ -33,15 +33,38 @@ QF_ENV=prelive
 NEXT_PUBLIC_DEFAULT_RECITATION_ID=7
 NEXT_PUBLIC_AUDIO_CDN_BASE=https://audio.qurancdn.com
 
-# Optional when implementing Quran Foundation User API features
-QF_USER_SCOPE=user
-QF_USER_OAUTH_SCOPE=openid offline_access user bookmark
+# Quran Foundation User API (OAuth login + bookmarks)
+QF_USER_CLIENT_ID=your-user-scope-client-id
+QF_USER_CLIENT_SECRET=your-user-scope-client-secret
 QF_USER_OAUTH_REDIRECT_URI=http://localhost:3000/api/user/oauth/callback
-# QF_USER_CLIENT_ID=your-user-scope-client-id
-# QF_USER_CLIENT_SECRET=your-user-scope-client-secret
-# QF_USER_API_BASE_PATH=/user/api/v1
-# QF_USER_BOOKMARKS_PATH=/bookmarks
-# QF_USER_PROFILE_PATH=/profile
+QF_USER_OAUTH_SCOPE=openid offline_access user bookmark
+QF_USER_SCOPE=user
+QF_USER_API_BASE_PATH=/user/api/v1
+QF_USER_BOOKMARKS_PATH=/bookmarks
+QF_USER_PROFILE_PATH=/profile
+
+# QF API base URL overrides (defaults match QF_ENV)
+# QF_API_BASE_PRELIVE=https://apis-prelive.quran.foundation
+# QF_API_BASE_PRODUCTION=https://apis.quran.foundation
+# QF_AUTH_BASE_PRELIVE=https://prelive-oauth2.quran.foundation
+# QF_AUTH_BASE_PRODUCTION=https://oauth2.quran.foundation
+# QF_API_BASE_URL=https://custom-api-host.example.com/content/api/v4
+# QF_AUTH_BASE_URL=https://custom-auth-host.example.com/oauth2
+# QF_USER_API_BASE_URL=https://custom-user-api-host.example.com
+# QF_USER_AUTH_BASE_URL=https://custom-user-auth-host.example.com/oauth2
+
+# QF scope overrides
+# QF_CONTENT_SCOPE=content
+
+# Session and token tuning
+# QF_SESSION_COOKIE_MAX_AGE=2592000    # seconds, default 30 days
+# QF_OAUTH_STATE_TTL=600               # seconds, default 10 min
+# QF_TOKEN_EXPIRY_BUFFER_MS=30000      # ms, default 30s
+# QF_TOKEN_EXPIRY_SOON_MS=300000       # ms, default 5 min
+
+# Bookmark rate limiting
+# BOOKMARK_RATE_LIMIT_WINDOW_MS=60000  # ms, default 60s
+# BOOKMARK_RATE_LIMIT_MAX=30           # requests per window, default 30
 ```
 
 ## 3) Apply Supabase Migrations

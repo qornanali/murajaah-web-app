@@ -1,5 +1,10 @@
 import "server-only";
 
+import {
+  BOOKMARK_RATE_LIMIT_WINDOW_MS,
+  BOOKMARK_RATE_LIMIT_MAX,
+} from "@/lib/config";
+
 interface RateLimitEntry {
   count: number;
   resetAt: number;
@@ -56,8 +61,8 @@ export function checkRateLimit(
 }
 
 export const BOOKMARK_RATE_LIMIT: RateLimitConfig = {
-  windowMs: 60 * 1000,
-  maxRequests: 30,
+  windowMs: BOOKMARK_RATE_LIMIT_WINDOW_MS,
+  maxRequests: BOOKMARK_RATE_LIMIT_MAX,
 };
 
 export function createRateLimitResponse(resetAt: number): Response {

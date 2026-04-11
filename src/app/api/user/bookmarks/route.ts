@@ -14,20 +14,9 @@ import {
   BOOKMARK_RATE_LIMIT,
   createRateLimitResponse,
 } from "@/lib/rateLimit";
+import { QF_USER_BOOKMARKS_PATH } from "@/lib/config";
 
-function normalizePath(value: string | undefined, fallback: string): string {
-  const trimmed = value?.trim() ?? "";
-  if (!trimmed) {
-    return fallback;
-  }
-
-  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-}
-
-const BOOKMARKS_PATH = normalizePath(
-  process.env.QF_USER_BOOKMARKS_PATH,
-  "/bookmarks",
-);
+const BOOKMARKS_PATH = QF_USER_BOOKMARKS_PATH;
 
 async function passthroughResponse(response: Response): Promise<NextResponse> {
   if (!response.ok) {

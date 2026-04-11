@@ -1,12 +1,19 @@
 import "server-only";
 
+import {
+  TOKEN_EXPIRY_BUFFER_MS,
+  QF_API_BASE,
+  QF_AUTH_BASE,
+  QF_CONTENT_SCOPE,
+  QF_CLIENT_ID,
+  QF_CLIENT_SECRET,
+} from "@/lib/config";
+
 const MISSING_CREDENTIALS_ERROR =
   "Missing Quran Foundation API credentials. Request access: https://api-docs.quran.foundation/request-access";
 
 const FORBIDDEN_SCOPE_ERROR =
   "Quran Foundation API request forbidden (403). Ensure scope=content and permission access is enabled.";
-
-type QfEnv = "prelive" | "production";
 
 interface TokenCache {
   accessToken: string;
@@ -18,63 +25,20 @@ interface OAuthTokenResponse {
   expires_in?: number;
 }
 
-const API_BASE_BY_ENV: Record<QfEnv, string> = {
-  prelive: "https://apis-prelive.quran.foundation",
-  production: "https://apis.quran.foundation",
-};
-
-const AUTH_BASE_BY_ENV: Record<QfEnv, string> = {
-  prelive: "https://prelive-oauth2.quran.foundation",
-  production: "https://oauth2.quran.foundation",
-};
-
 let tokenCache: TokenCache | null = null;
 let inflightTokenRequest: Promise<string> | null = null;
 
-function normalizeBaseUrl(url: string): string {
-  return url.trim().replace(/\/+$/, "");
-}
-
-function getEnvironment(): QfEnv {
-  const env = process.env.QF_ENV;
-  if (env === "production") {
-    return "production";
-  }
-  return "prelive";
-}
-
 function getCredentials(): { clientId: string; clientSecret: string } {
-  const clientId = process.env.QF_CLIENT_ID;
-  const clientSecret = process.env.QF_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
+  if (!QF_CLIENT_ID || !QF_CLIENT_SECRET) {
     throw new Error(MISSING_CREDENTIALS_ERROR);
   }
 
-  return { clientId, clientSecret };
-}
-
-function getApiBaseUrl(): string {
-  const configured = process.env.QF_API_BASE_URL;
-  if (configured && configured.trim()) {
-    return normalizeBaseUrl(configured).replace(/\/content\/api\/v4$/, "");
-  }
-
-  return API_BASE_BY_ENV[getEnvironment()];
-}
-
-function getAuthBaseUrl(): string {
-  const configured = process.env.QF_AUTH_BASE_URL;
-  if (configured && configured.trim()) {
-    return normalizeBaseUrl(configured).replace(/\/oauth2$/, "");
-  }
-
-  return AUTH_BASE_BY_ENV[getEnvironment()];
+  return { clientId: QF_CLIENT_ID, clientSecret: QF_CLIENT_SECRET };
 }
 
 async function requestAccessToken(): Promise<string> {
   const { clientId, clientSecret } = getCredentials();
-  const tokenUrl = `${getAuthBaseUrl()}/oauth2/token`;
+  const tokenUrl = `${QF_AUTH_BASE}/oauth2/token`;
   const basicToken = Buffer.from(`${clientId}:${clientSecret}`).toString(
     "base64",
   );
@@ -86,7 +50,7 @@ async function requestAccessToken(): Promise<string> {
       "Content-Type": "application/x-www-form-urlencoded",
       Accept: "application/json",
     },
-    body: "grant_type=client_credentials&scope=content",
+    body: `grant_type=client_credentials&scope=${encodeURIComponent(QF_CONTENT_SCOPE)}`,
     cache: "no-store",
   });
 
@@ -115,7 +79,11 @@ async function requestAccessToken(): Promise<string> {
 async function getAccessToken(forceRenew = false): Promise<string> {
   const now = Date.now();
 
-  if (!forceRenew && tokenCache && now < tokenCache.expiresAtMs - 30_000) {
+  if (
+    !forceRenew &&
+    tokenCache &&
+    now < tokenCache.expiresAtMs - TOKEN_EXPIRY_BUFFER_MS
+  ) {
     return tokenCache.accessToken;
   }
 
@@ -137,7 +105,7 @@ export async function qfApiRequest(
 ): Promise<Response> {
   const { clientId } = getCredentials();
   const accessToken = await getAccessToken();
-  const url = `${getApiBaseUrl()}/content/api/v4${path}`;
+  const url = `${QF_API_BASE}/content/api/v4${path}`;
   const headers = new Headers(init?.headers);
   headers.set("Accept", "application/json");
   headers.set("x-auth-token", accessToken);

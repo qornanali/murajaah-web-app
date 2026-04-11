@@ -6,6 +6,7 @@ import {
   generateRandomToken,
   getQfOAuthConfig,
 } from "@/lib/qf/oauth";
+import { OAUTH_STATE_COOKIE_TTL } from "@/lib/config";
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax" as const,
       path: "/",
-      maxAge: 60 * 10,
+      maxAge: OAUTH_STATE_COOKIE_TTL,
     };
 
     response.cookies.set(QF_OAUTH_COOKIES.state, state, cookieOptions);

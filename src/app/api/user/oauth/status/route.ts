@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { QF_OAUTH_COOKIES } from "@/lib/qf/oauth";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { SESSION_COOKIE_MAX_AGE, TOKEN_EXPIRY_SOON_MS } from "@/lib/config";
 
 export async function GET(request: NextRequest) {
   const qfUserId = request.cookies.get(QF_OAUTH_COOKIES.userId)?.value;
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     const expiresAtMs = Date.parse(data.access_token_expires_at as string);
     const expiresSoon = Number.isFinite(expiresAtMs)
-      ? expiresAtMs - Date.now() < 5 * 60 * 1000
+      ? expiresAtMs - Date.now() < TOKEN_EXPIRY_SOON_MS
       : true;
 
     const appUserId =
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        maxAge: 60 * 60 * 24 * 30,
+        maxAge: SESSION_COOKIE_MAX_AGE,
       });
     }
 
