@@ -9,6 +9,11 @@ import {
   qfUserApiRequestForLinkedUser,
 } from "@/lib/qf/userApi";
 import { QF_OAUTH_COOKIES } from "@/lib/qf/oauth";
+import {
+  checkRateLimit,
+  BOOKMARK_RATE_LIMIT,
+  createRateLimitResponse,
+} from "@/lib/rateLimit";
 
 function normalizePath(value: string | undefined, fallback: string): string {
   const trimmed = value?.trim() ?? "";
@@ -88,6 +93,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const qfUserId = request.cookies.get(QF_OAUTH_COOKIES.userId)?.value ?? null;
+
+  const rateLimitCheck = checkRateLimit(
+    `bookmark-post-${qfUserId ?? "anonymous"}`,
+    BOOKMARK_RATE_LIMIT,
+  );
+
+  if (!rateLimitCheck.allowed) {
+    return createRateLimitResponse(rateLimitCheck.resetAt);
+  }
+
   let body: unknown;
 
   try {
@@ -117,6 +132,68 @@ export async function POST(request: NextRequest) {
     );
 
     return passthroughResponse(response);
+  } catch (error) {
+    return handleProxyError(error);
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const qfUserId = request.cookies.get(QF_OAUTH_COOKIES.userId)?.value ?? null;
+
+  const rateLimitCheck = checkRateLimit(
+    `bookmark-delete-${qfUserId ?? "anonymous"}`,
+    BOOKMARK_RATE_LIMIT,
+  );
+
+  if (!rateLimitCheck.allowed) {
+    return createRateLimitResponse(rateLimitCheck.resetAt);
+  }
+
+  let verseKey: string | null = null;
+
+  try {
+    const body = await request.json();
+    if (typeof body === "object" && body !== null) {
+      verseKey = (body as Record<string, unknown>).verse_key as
+        | string
+        | undefined;
+    }
+  } catch {
+    const searchParams = request.nextUrl.searchParams;
+    verseKey = searchParams.get("verse_key") ?? null;
+  }
+
+  if (!verseKey) {
+    return NextResponse.json(
+      { message: "verse_key is required" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const response = await qfUserApiRequestForLinkedUser(
+      qfUserId,
+      `${BOOKMARKS_PATH}/${encodeURIComponent(verseKey)}`,
+      {
+        method: "DELETE",
+      },
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      return new NextResponse(text, {
+        status: response.status,
+        headers: {
+          "Content-Type":
+            response.headers.get("Content-Type") ?? "application/json",
+        },
+      });
+    }
+
+    return NextResponse.json(
+      { message: "Bookmark deleted successfully" },
+      { status: 200 },
+    );
   } catch (error) {
     return handleProxyError(error);
   }

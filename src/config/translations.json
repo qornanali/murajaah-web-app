@@ -177,9 +177,12 @@
     "practice.showHint": "Show Hint",
     "practice.showAyah": "Show Ayah",
     "practice.bookmark": "Bookmark",
+    "practice.bookmarkRemove": "Remove",
     "practice.bookmarkSaving": "Saving...",
     "practice.bookmarkSaved": "Ayah bookmarked successfully.",
+    "practice.bookmarkRemoved": "Bookmark removed.",
     "practice.bookmarkFailed": "Unable to save bookmark.",
+    "practice.bookmarkRemovalFailed": "Unable to remove bookmark.",
     "practice.bookmarkSignInRequired": "Sign in to save bookmarks.",
     "practice.nextPhrase": "Next Phrase",
     "practice.prevPhrase": "Prev Phrase",
@@ -195,7 +198,11 @@
     "practice.dueCard.cta": "Start Murajaah",
     "practice.dueCard.allCaughtUp": "Alhamdulillah, you're all caught up!",
     "practice.dueCard.allCaughtUpSubtitle": "No ayahs due right now. Keep up the dedication, in sha Allah.",
-    "practice.dueCard.loading": "Checking due reviews..."
+    "practice.dueCard.loading": "Checking due reviews...",
+    "bookmarks.title": "My Bookmarks",
+    "bookmarks.empty": "No bookmarks yet. Save verses while practicing.",
+    "bookmarks.noResults": "No bookmarks match your search.",
+    "bookmarks.search": "Search bookmarks..."
   },
   "id": {
     "common.loading": "Memuat...",
@@ -375,9 +382,12 @@
     "practice.showHint": "Tampilkan Petunjuk",
     "practice.showAyah": "Tampilkan Ayat",
     "practice.bookmark": "Bookmark",
+    "practice.bookmarkRemove": "Hapus",
     "practice.bookmarkSaving": "Menyimpan...",
     "practice.bookmarkSaved": "Ayat berhasil disimpan sebagai bookmark.",
+    "practice.bookmarkRemoved": "Bookmark dihapus.",
     "practice.bookmarkFailed": "Tidak dapat menyimpan bookmark.",
+    "practice.bookmarkRemovalFailed": "Tidak dapat menghapus bookmark.",
     "practice.bookmarkSignInRequired": "Masuk untuk menyimpan bookmark.",
     "practice.nextPhrase": "Frasa Berikutnya",
     "practice.prevPhrase": "Frasa Sebelumnya",
@@ -393,6 +403,10 @@
     "practice.dueCard.cta": "Mulai Murajaah",
     "practice.dueCard.allCaughtUp": "Alhamdulillah, semua sudah selesai!",
     "practice.dueCard.allCaughtUpSubtitle": "Tidak ada ayat yang jatuh tempo saat ini. Pertahankan semangat murajaahmu, in sha Allah.",
-    "practice.dueCard.loading": "Memeriksa tinjauan..."
+    "practice.dueCard.loading": "Memeriksa tinjauan...",
+    "bookmarks.title": "Bookmark Saya",
+    "bookmarks.empty": "Belum ada bookmark. Simpan ayat saat berlatih.",
+    "bookmarks.noResults": "Tidak ada bookmark yang cocok dengan pencarian Anda.",
+    "bookmarks.search": "Cari bookmark..."
   }
 }

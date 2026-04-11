@@ -17,7 +17,11 @@ import {
   estimateRevealDurationSeconds,
   splitAyahByWaqf,
 } from "@/lib/quranUtils";
-import { createBookmarkForVerse } from "@/lib/qf/userBrowser";
+import {
+  createBookmarkForVerse,
+  deleteBookmarkForVerse,
+  checkBookmarkStatus,
+} from "@/lib/qf/userBrowser";
 import { PACKAGE_CATALOG } from "@/lib/packages/catalog";
 import { fetchPublishedMemorizationPackages } from "@/lib/packages/api";
 import { getPackageVerseKeys } from "@/lib/packages/progress";
@@ -186,6 +190,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [isBookmarkSaving, setIsBookmarkSaving] = useState(false);
   const [bookmarkMessage, setBookmarkMessage] = useState<string | null>(null);
+  const [isBookmarked, setIsBookmarked] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const feedbackTimerRef = useRef<number | null>(null);
@@ -398,14 +403,27 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
     setBookmarkMessage(null);
 
     const verseKey = toVerseKey(ayah.surahNumber, ayah.ayahNumber);
-    const result = await createBookmarkForVerse(verseKey);
 
-    if (result.ok) {
-      setBookmarkMessage(t("practice.bookmarkSaved", locale));
+    if (isBookmarked) {
+      const result = await deleteBookmarkForVerse(verseKey);
+      if (result.ok) {
+        setIsBookmarked(false);
+        setBookmarkMessage(t("practice.bookmarkRemoved", locale));
+      } else {
+        setBookmarkMessage(
+          result.message ?? t("practice.bookmarkRemovalFailed", locale),
+        );
+      }
     } else {
-      setBookmarkMessage(
-        result.message ?? t("practice.bookmarkFailed", locale),
-      );
+      const result = await createBookmarkForVerse(verseKey);
+      if (result.ok) {
+        setIsBookmarked(true);
+        setBookmarkMessage(t("practice.bookmarkSaved", locale));
+      } else {
+        setBookmarkMessage(
+          result.message ?? t("practice.bookmarkFailed", locale),
+        );
+      }
     }
 
     setIsBookmarkSaving(false);
@@ -414,11 +432,19 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
   const loadAyahByKey = async (verseKey: string) => {
     setAyahLoading(true);
     setAyahError(null);
+    setIsBookmarked(false);
     try {
       const data = await fetchAyahByKey(verseKey);
       setAyah(data);
       if (activeUserId) {
         void loadAyahProgress(activeUserId, data.surahNumber, data.ayahNumber);
+      }
+
+      if (user?.id || qfSession?.linked) {
+        const bookmarkStatus = await checkBookmarkStatus(verseKey);
+        if (bookmarkStatus.ok && bookmarkStatus.bookmarks) {
+          setIsBookmarked(bookmarkStatus.bookmarks[verseKey] ?? false);
+        }
       }
     } catch (err) {
       setAyahError(toUserError("QURAN-AYAH-001", err));
@@ -634,12 +660,20 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
           onClick={() => {
             void handleBookmarkCurrentAyah();
           }}
-          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-emerald-900/20 bg-emerald-900/8 px-3 text-xs font-semibold text-emerald-900 transition-colors hover:bg-emerald-900/12 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-100/20 dark:bg-emerald-100/10 dark:text-emerald-100 dark:hover:bg-emerald-100/15"
+          className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+            isBookmarked
+              ? "border-amber-900/40 bg-amber-900/15 text-amber-900 hover:bg-amber-900/20 dark:border-amber-100/30 dark:bg-amber-100/15 dark:text-amber-100 dark:hover:bg-amber-100/20"
+              : "border-emerald-900/20 bg-emerald-900/8 text-emerald-900 hover:bg-emerald-900/12 dark:border-emerald-100/20 dark:bg-emerald-100/10 dark:text-emerald-100 dark:hover:bg-emerald-100/15"
+          }`}
         >
-          <Bookmark className="h-3.5 w-3.5" />
+          <Bookmark
+            className={`h-3.5 w-3.5 ${isBookmarked ? "fill-current" : ""}`}
+          />
           {isBookmarkSaving
             ? t("practice.bookmarkSaving", locale)
-            : t("practice.bookmark", locale)}
+            : isBookmarked
+              ? t("practice.bookmarkRemove", locale)
+              : t("practice.bookmark", locale)}
         </button>
       </header>
 
