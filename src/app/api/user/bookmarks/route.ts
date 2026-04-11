@@ -20,6 +20,42 @@ const BOOKMARKS_PATH = normalizePath(
   "/bookmarks",
 );
 
+async function passthroughResponse(response: Response): Promise<NextResponse> {
+  if (!response.ok) {
+    const text = await response.text();
+    return new NextResponse(text, {
+      status: response.status,
+      headers: {
+        "Content-Type":
+          response.headers.get("Content-Type") ?? "application/json",
+      },
+    });
+  }
+
+  const payload = await response.json();
+  return NextResponse.json(payload, {
+    status: 200,
+    headers: {
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+function handleProxyError(error: unknown): NextResponse {
+  const message =
+    error instanceof Error ? error.message : "Unexpected server error";
+
+  if (message === MISSING_USER_CREDENTIALS_ERROR) {
+    return NextResponse.json({ message }, { status: 500 });
+  }
+
+  if (message === FORBIDDEN_USER_SCOPE_ERROR) {
+    return NextResponse.json({ message }, { status: 403 });
+  }
+
+  return NextResponse.json({ message }, { status: 502 });
+}
+
 export async function GET(request: NextRequest) {
   const search = request.nextUrl.search;
 
@@ -27,37 +63,42 @@ export async function GET(request: NextRequest) {
     const response = await qfUserApiRequest(`${BOOKMARKS_PATH}${search}`, {
       method: "GET",
     });
-
-    if (!response.ok) {
-      const text = await response.text();
-      return new NextResponse(text, {
-        status: response.status,
-        headers: {
-          "Content-Type":
-            response.headers.get("Content-Type") ?? "application/json",
-        },
-      });
-    }
-
-    const payload = await response.json();
-    return NextResponse.json(payload, {
-      status: 200,
-      headers: {
-        "Cache-Control": "no-store",
-      },
-    });
+    return passthroughResponse(response);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unexpected server error";
+    return handleProxyError(error);
+  }
+}
 
-    if (message === MISSING_USER_CREDENTIALS_ERROR) {
-      return NextResponse.json({ message }, { status: 500 });
-    }
+export async function POST(request: NextRequest) {
+  let body: unknown;
 
-    if (message === FORBIDDEN_USER_SCOPE_ERROR) {
-      return NextResponse.json({ message }, { status: 403 });
-    }
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { message: "Invalid JSON body" },
+      { status: 400 },
+    );
+  }
 
-    return NextResponse.json({ message }, { status: 502 });
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json(
+      { message: "Bookmark payload must be a JSON object" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const response = await qfUserApiRequest(BOOKMARKS_PATH, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    return passthroughResponse(response);
+  } catch (error) {
+    return handleProxyError(error);
   }
 }

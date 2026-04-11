@@ -100,6 +100,9 @@ npm run lint
 - Client ayah fetches go through internal routes:
   - `GET /api/quran/chapters`
   - `GET /api/quran/verses/by_key/[verseKey]`
+- User API bookmark integration uses:
+  - `GET /api/user/bookmarks`
+  - `POST /api/user/bookmarks`
 - Internal routes call Quran Foundation APIs using OAuth2 token flow in server-only code.
 - Review writes are stored in Dexie first, then synced to Supabase using a retrying queue.
 - Guest progress is intentionally local-only.
