@@ -16,6 +16,10 @@ import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
 import { calculateStreakFromIsoDates } from "@/lib/streak";
 import { checkUserApiConnectivity } from "@/lib/qf/userBrowser";
+import {
+  fetchQfSessionStatus,
+  type QfSessionStatus,
+} from "@/lib/qf/sessionBrowser";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
   fetchPublishedMemorizationPackages,
@@ -144,10 +148,16 @@ export default function Home() {
   const [surahMasteryData, setSurahMasteryData] = useState<
     Record<string, Record<number, SurahMastery>>
   >({});
+  const [qfSession, setQfSession] = useState<QfSessionStatus>({
+    linked: false,
+    qfUserId: null,
+    appUserId: null,
+  });
 
   const authenticatedUserId = user?.id;
+  const isQfLinked = qfSession.linked;
   const activeUserId = user?.id ?? guestUserId;
-  const isGuestMode = !user && Boolean(guestUserId);
+  const isGuestMode = !user && !isQfLinked && Boolean(guestUserId);
 
   const normalizedSurahSearch = surahSearch.trim().toLowerCase();
   const normalizedPackageSearch = packageSearch.trim().toLowerCase();
@@ -328,6 +338,15 @@ export default function Home() {
   }, [initializeUIState]);
 
   useEffect(() => {
+    const loadQfSession = async () => {
+      const status = await fetchQfSessionStatus();
+      setQfSession(status);
+    };
+
+    void loadQfSession();
+  }, []);
+
+  useEffect(() => {
     const loadPackages = async () => {
       setPackagesError(null);
 
@@ -440,7 +459,7 @@ export default function Home() {
 
   useEffect(() => {
     const loadUserApiStatus = async () => {
-      if (!authenticatedUserId) {
+      if (!authenticatedUserId && !isQfLinked) {
         setIsUserApiConnected(null);
         return;
       }
@@ -450,7 +469,7 @@ export default function Home() {
     };
 
     void loadUserApiStatus();
-  }, [authenticatedUserId]);
+  }, [authenticatedUserId, isQfLinked]);
 
   useEffect(() => {
     if (!isGuestMode || !guestUserId) {
@@ -786,7 +805,16 @@ export default function Home() {
   };
 
   const handleSignOut = async () => {
-    await signOut();
+    if (user) {
+      await signOut();
+    } else {
+      await fetch("/api/user/oauth/logout", {
+        method: "POST",
+      });
+      setQfSession({ linked: false, qfUserId: null, appUserId: null });
+      setIsUserApiConnected(null);
+    }
+
     router.push("/");
   };
 
@@ -848,7 +876,7 @@ export default function Home() {
         locale={locale}
         theme={theme}
         isGuestMode={isGuestMode}
-        userEmail={user?.email}
+        userEmail={user?.email ?? qfSession.qfUserId ?? undefined}
         onSetLocale={setLocale}
         onSetTheme={setTheme}
         onOpenInfoModal={() => setIsInfoModalOpen(true)}

@@ -112,6 +112,8 @@ npm run lint
   - `GET /api/user/oauth/start`
   - `GET /api/user/oauth/callback`
   - `GET /api/user/oauth/status`
+  - `POST /api/user/oauth/logout`
+  - `GET /api/user/session`
 - Internal routes call Quran Foundation APIs using OAuth2 token flow in server-only code.
 - Review writes are stored in Dexie first, then synced to Supabase using a retrying queue.
 - Guest progress is intentionally local-only.

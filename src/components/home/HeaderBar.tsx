@@ -29,8 +29,12 @@ export function HeaderBar({
   const router = useRouter();
 
   const maskEmail = (email: string | undefined | null) => {
-    if (!email || !email.includes("@")) {
+    if (!email) {
       return "***";
+    }
+
+    if (!email.includes("@")) {
+      return email.length > 20 ? `${email.slice(0, 8)}...` : email;
     }
 
     const [localPart, domain] = email.split("@");
@@ -87,7 +91,9 @@ export function HeaderBar({
           <button
             type="button"
             onClick={() => onSetLocale(locale === "en" ? "id" : "en")}
-            aria-label={locale === "en" ? "Switch to Indonesian" : "Switch to English"}
+            aria-label={
+              locale === "en" ? "Switch to Indonesian" : "Switch to English"
+            }
             className="inline-flex h-8 items-center gap-1.5 rounded-full border border-emerald-900/15 bg-emerald-900/5 px-2.5 text-xs font-semibold text-emerald-900 transition-colors hover:bg-emerald-900/10 dark:border-emerald-100/15 dark:bg-emerald-100/5 dark:text-emerald-100 dark:hover:bg-emerald-100/10"
           >
             <svg
@@ -109,8 +115,16 @@ export function HeaderBar({
           <button
             type="button"
             onClick={() => onSetTheme(theme === "light" ? "dark" : "light")}
-            aria-label={theme === "light" ? t("common.dark", locale) : t("common.light", locale)}
-            title={theme === "light" ? t("common.dark", locale) : t("common.light", locale)}
+            aria-label={
+              theme === "light"
+                ? t("common.dark", locale)
+                : t("common.light", locale)
+            }
+            title={
+              theme === "light"
+                ? t("common.dark", locale)
+                : t("common.light", locale)
+            }
             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-900/15 bg-emerald-900/5 text-emerald-900 transition-colors hover:bg-emerald-900/10 dark:border-emerald-100/15 dark:bg-emerald-100/5 dark:text-emerald-100 dark:hover:bg-emerald-100/10"
           >
             {theme === "light" ? (
