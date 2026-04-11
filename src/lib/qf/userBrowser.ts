@@ -1,6 +1,6 @@
 export async function checkUserApiConnectivity(): Promise<boolean> {
   try {
-    const response = await fetch("/api/user/bookmarks?limit=1", {
+    const response = await fetch("/api/user/oauth/status", {
       method: "GET",
       headers: {
         Accept: "application/json",
@@ -8,7 +8,15 @@ export async function checkUserApiConnectivity(): Promise<boolean> {
       cache: "no-store",
     });
 
-    return response.ok;
+    if (!response.ok) {
+      return false;
+    }
+
+    const payload = (await response.json().catch(() => null)) as {
+      linked?: boolean;
+    } | null;
+
+    return payload?.linked === true;
   } catch {
     return false;
   }
