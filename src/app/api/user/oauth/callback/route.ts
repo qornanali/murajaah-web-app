@@ -7,6 +7,8 @@ import {
   resolveQfIdentity,
 } from "@/lib/qf/oauth";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { migrateAllGuestDataToUser } from "@/lib/qf/guestMigration";
+import { getGuestUserId } from "@/lib/guest";
 
 function clearOAuthCookies(response: NextResponse) {
   response.cookies.delete(QF_OAUTH_COOKIES.state);
@@ -87,6 +89,14 @@ export async function GET(request: NextRequest) {
       throw new Error(error.message);
     }
 
+    const { data: existingAppUser } = await supabase
+      .from("app_users")
+      .select("id")
+      .eq("qf_user_id", identity.qfUserId)
+      .single();
+
+    const isNewUser = !existingAppUser;
+
     const { data: appUser, error: appUserError } = await supabase
       .from("app_users")
       .upsert(
@@ -103,6 +113,13 @@ export async function GET(request: NextRequest) {
 
     if (appUserError || !appUser?.id) {
       throw new Error(appUserError?.message ?? "Unable to create app user");
+    }
+
+    if (isNewUser) {
+      const guestUserId = getGuestUserId();
+      if (guestUserId) {
+        await migrateAllGuestDataToUser(guestUserId, appUser.id);
+      }
     }
 
     const response = redirectWithStatus(request, "linked");

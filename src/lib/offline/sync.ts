@@ -1,22 +1,11 @@
 import { murajaahDB, type AyahProgressRow } from "./db";
 import { isGuestUserId } from "@/lib/guest";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 let activeSync: Promise<void> | null = null;
-
-const UUID_V4_OR_V1_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function validateAyahProgressRecord(record: AyahProgressRow) {
   if (isGuestUserId(record.userId)) {
     throw new Error("Guest progress is local-only and cannot be synced");
-  }
-
-  if (
-    !UUID_V4_OR_V1_REGEX.test(record.id) ||
-    !UUID_V4_OR_V1_REGEX.test(record.userId)
-  ) {
-    throw new Error("Invalid ayah progress identifier");
   }
 
   if (
@@ -64,35 +53,22 @@ function validateAyahProgressRecord(record: AyahProgressRow) {
   }
 }
 
-const toSupabasePayload = (record: AyahProgressRow) => ({
-  id: record.id,
-  user_id: record.userId,
-  surah_number: record.surahNumber,
-  ayah_number: record.ayahNumber,
-  ease_factor: record.easeFactor,
-  interval: record.interval,
-  repetitions: record.repetitions,
-  next_review_date: record.nextReviewDate,
-  updated_at: record.updatedAt,
-});
-
 async function pushAyahProgress(record: AyahProgressRow) {
   validateAyahProgressRecord(record);
 
-  const supabase = getSupabaseBrowserClient();
+  const response = await fetch("/api/user/ayah-progress", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(record),
+  });
 
-  if (!supabase) {
-    throw new Error("Supabase credentials are missing");
-  }
-
-  const { error } = await supabase
-    .from("ayah_progress")
-    .upsert(toSupabasePayload(record), {
-      onConflict: "user_id,surah_number,ayah_number",
-    });
-
-  if (error) {
-    throw new Error(error.message);
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    const message =
+      typeof data.message === "string"
+        ? data.message
+        : `HTTP ${response.status}`;
+    throw new Error(message);
   }
 }
 

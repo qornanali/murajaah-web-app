@@ -10,6 +10,10 @@ import { murajaahDB } from "@/lib/offline/db";
 import { fetchAyahByKey, toVerseKey } from "@/lib/quranApi";
 import { getSurahName } from "@/lib/quranMeta";
 import {
+  fetchQfSessionStatus,
+  type QfSessionStatus,
+} from "@/lib/qf/sessionBrowser";
+import {
   estimateRevealDurationSeconds,
   splitAyahByWaqf,
 } from "@/lib/quranUtils";
@@ -161,6 +165,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
   const latestProgress = useReviewStore((state) => state.latestProgress);
 
   const [guestUserId, setGuestUserId] = useState<string | null>(null);
+  const [qfSession, setQfSession] = useState<QfSessionStatus | null>(null);
   const [packages, setPackages] = useState<MemorizationPackage[]>([]);
   const [packagesReady, setPackagesReady] = useState(false);
 
@@ -187,7 +192,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
   const postRatingRevealFinalizingRef = useRef(false);
   const sessionInitializedRef = useRef(false);
 
-  const activeUserId = user?.id ?? guestUserId;
+  const activeUserId = user?.id ?? qfSession?.appUserId ?? guestUserId;
 
   const trackVerseKeys = useMemo(
     () => (packagesReady ? getTrackVerseKeys(kind, id, packages) : null),
@@ -258,6 +263,18 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
 
   useEffect(() => {
     setGuestUserId(getGuestUserId());
+  }, []);
+
+  useEffect(() => {
+    const loadSession = async () => {
+      try {
+        const status = await fetchQfSessionStatus();
+        setQfSession(status);
+      } catch {
+        setQfSession(null);
+      }
+    };
+    void loadSession();
   }, []);
 
   useEffect(() => {
@@ -372,7 +389,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
       return;
     }
 
-    if (!user?.id) {
+    if (!user?.id && !qfSession?.linked) {
       setBookmarkMessage(t("practice.bookmarkSignInRequired", locale));
       return;
     }
