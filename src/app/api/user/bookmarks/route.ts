@@ -143,9 +143,8 @@ export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json();
     if (typeof body === "object" && body !== null) {
-      verseKey = (body as Record<string, unknown>).verse_key as
-        | string
-        | undefined;
+      const raw = (body as Record<string, unknown>).verse_key;
+      verseKey = typeof raw === "string" ? raw : null;
     }
   } catch {
     const searchParams = request.nextUrl.searchParams;

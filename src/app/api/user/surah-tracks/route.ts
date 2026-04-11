@@ -42,7 +42,11 @@ export async function POST(request: NextRequest) {
   } | null;
 
   const surahNumber = body?.surahNumber;
-  if (!Number.isInteger(surahNumber) || surahNumber < 1 || surahNumber > 114) {
+  if (
+    !Number.isInteger(surahNumber) ||
+    (surahNumber as number) < 1 ||
+    (surahNumber as number) > 114
+  ) {
     return NextResponse.json(
       { message: "Invalid surah number" },
       { status: 400 },
@@ -79,7 +83,11 @@ export async function DELETE(request: NextRequest) {
   } | null;
 
   const surahNumber = body?.surahNumber;
-  if (!Number.isInteger(surahNumber) || surahNumber < 1 || surahNumber > 114) {
+  if (
+    !Number.isInteger(surahNumber) ||
+    (surahNumber as number) < 1 ||
+    (surahNumber as number) > 114
+  ) {
     return NextResponse.json(
       { message: "Invalid surah number" },
       { status: 400 },

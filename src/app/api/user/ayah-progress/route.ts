@@ -3,7 +3,7 @@ import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 
 import { getLinkedAppUserId } from "@/lib/qf/sessionServer";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 interface AyahProgressPayload {
   id: string;
@@ -52,36 +52,40 @@ function validateAyahProgressPayload(payload: unknown): AyahProgressPayload {
 
   if (
     !Number.isInteger(p.surahNumber) ||
-    p.surahNumber < 1 ||
-    p.surahNumber > 114
+    (p.surahNumber as number) < 1 ||
+    (p.surahNumber as number) > 114
   ) {
     throw new Error("Invalid surah number: must be 1-114");
   }
 
   if (
     !Number.isInteger(p.ayahNumber) ||
-    p.ayahNumber < 1 ||
-    p.ayahNumber > 300
+    (p.ayahNumber as number) < 1 ||
+    (p.ayahNumber as number) > 300
   ) {
     throw new Error("Invalid ayah number: must be 1-300");
   }
 
   if (
     !Number.isFinite(p.easeFactor) ||
-    p.easeFactor < 1.3 ||
-    p.easeFactor > 3.5
+    (p.easeFactor as number) < 1.3 ||
+    (p.easeFactor as number) > 3.5
   ) {
     throw new Error("Invalid ease factor: must be 1.3-3.5");
   }
 
-  if (!Number.isInteger(p.interval) || p.interval < 0 || p.interval > 36500) {
+  if (
+    !Number.isInteger(p.interval) ||
+    (p.interval as number) < 0 ||
+    (p.interval as number) > 36500
+  ) {
     throw new Error("Invalid interval: must be 0-36500");
   }
 
   if (
     !Number.isInteger(p.repetitions) ||
-    p.repetitions < 0 ||
-    p.repetitions > 10000
+    (p.repetitions as number) < 0 ||
+    (p.repetitions as number) > 10000
   ) {
     throw new Error("Invalid repetitions: must be 0-10000");
   }
@@ -128,7 +132,7 @@ export async function POST(request: NextRequest) {
       return toValidationError(message);
     }
 
-    const supabase = getSupabaseServerClient();
+    const supabase = getSupabaseAdminClient();
 
     const { error } = await supabase.from("ayah_progress").upsert(
       {

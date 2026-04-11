@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 interface GuestProgressRow {
   id: string;
@@ -32,7 +32,7 @@ export async function migrateGuestProgressToUser(
   newAppUserId: string,
 ): Promise<number> {
   try {
-    const supabase = getSupabaseServerClient();
+    const supabase = getSupabaseAdminClient();
 
     const { data: guestProgress, error: fetchError } = await supabase
       .from("ayah_progress")
@@ -81,7 +81,7 @@ export async function migrateGuestSurahTracksToUser(
   newAppUserId: string,
 ): Promise<number> {
   try {
-    const supabase = getSupabaseServerClient();
+    const supabase = getSupabaseAdminClient();
 
     const { data: guestTracks, error: fetchError } = await supabase
       .from("user_surah_tracks")
@@ -128,7 +128,7 @@ export async function migrateGuestPackageEnrollmentsToUser(
   newAppUserId: string,
 ): Promise<number> {
   try {
-    const supabase = getSupabaseServerClient();
+    const supabase = getSupabaseAdminClient();
 
     const { data: guestEnrollments, error: fetchError } = await supabase
       .from("user_memorization_packages")

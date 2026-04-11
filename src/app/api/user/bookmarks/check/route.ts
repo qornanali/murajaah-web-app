@@ -62,7 +62,9 @@ export async function POST(request: NextRequest) {
       if (typeof verse_key === "string") {
         verseKeys = [verse_key];
       } else if (Array.isArray(body.verse_keys)) {
-        verseKeys = body.verse_keys.filter((v) => typeof v === "string");
+        verseKeys = (body.verse_keys as unknown[]).filter(
+          (v): v is string => typeof v === "string",
+        );
       }
     }
   } catch {
