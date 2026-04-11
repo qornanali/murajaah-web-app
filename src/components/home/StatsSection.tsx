@@ -118,17 +118,9 @@ export function StatsSection({
           </div>
         </section>
 
-        {isUserApiConnected !== null ? (
-          <div
-            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
-              isUserApiConnected
-                ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/35 dark:text-emerald-100"
-                : "bg-amber-100 text-amber-900 dark:bg-amber-900/35 dark:text-amber-100"
-            }`}
-          >
-            {isUserApiConnected
-              ? t("page.userApiConnected", locale)
-              : t("page.userApiUnavailable", locale)}
+        {isUserApiConnected ? (
+          <div className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-900 dark:bg-emerald-900/35 dark:text-emerald-100">
+            {t("page.userApiConnected", locale)}
           </div>
         ) : null}
 
