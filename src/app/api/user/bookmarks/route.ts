@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 import {
   FORBIDDEN_USER_SCOPE_ERROR,
+  LINKED_IDENTITY_NOT_FOUND_ERROR,
+  MISSING_LINKED_USER_ERROR,
+  MISSING_REFRESH_TOKEN_ERROR,
   MISSING_USER_CREDENTIALS_ERROR,
-  qfUserApiRequest,
+  qfUserApiRequestForLinkedUser,
 } from "@/lib/qf/userApi";
+import { QF_OAUTH_COOKIES } from "@/lib/qf/oauth";
 
 function normalizePath(value: string | undefined, fallback: string): string {
   const trimmed = value?.trim() ?? "";
@@ -49,6 +53,14 @@ function handleProxyError(error: unknown): NextResponse {
     return NextResponse.json({ message }, { status: 500 });
   }
 
+  if (
+    message === MISSING_LINKED_USER_ERROR ||
+    message === LINKED_IDENTITY_NOT_FOUND_ERROR ||
+    message === MISSING_REFRESH_TOKEN_ERROR
+  ) {
+    return NextResponse.json({ message }, { status: 401 });
+  }
+
   if (message === FORBIDDEN_USER_SCOPE_ERROR) {
     return NextResponse.json({ message }, { status: 403 });
   }
@@ -58,11 +70,16 @@ function handleProxyError(error: unknown): NextResponse {
 
 export async function GET(request: NextRequest) {
   const search = request.nextUrl.search;
+  const qfUserId = request.cookies.get(QF_OAUTH_COOKIES.userId)?.value ?? null;
 
   try {
-    const response = await qfUserApiRequest(`${BOOKMARKS_PATH}${search}`, {
-      method: "GET",
-    });
+    const response = await qfUserApiRequestForLinkedUser(
+      qfUserId,
+      `${BOOKMARKS_PATH}${search}`,
+      {
+        method: "GET",
+      },
+    );
     return passthroughResponse(response);
   } catch (error) {
     return handleProxyError(error);
@@ -70,15 +87,13 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const qfUserId = request.cookies.get(QF_OAUTH_COOKIES.userId)?.value ?? null;
   let body: unknown;
 
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { message: "Invalid JSON body" },
-      { status: 400 },
-    );
+    return NextResponse.json({ message: "Invalid JSON body" }, { status: 400 });
   }
 
   if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -89,13 +104,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const response = await qfUserApiRequest(BOOKMARKS_PATH, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const response = await qfUserApiRequestForLinkedUser(
+      qfUserId,
+      BOOKMARKS_PATH,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+    );
 
     return passthroughResponse(response);
   } catch (error) {

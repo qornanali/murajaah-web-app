@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { t } from "@/lib/i18n";
-import { useAuthStore } from "@/store/authStore";
 import { useLocaleStore } from "@/store/localeStore";
 import { useThemeStore } from "@/store/themeStore";
 
@@ -19,18 +18,10 @@ function LoginPageContent() {
   const initializeTheme = useThemeStore((state) => state.initializeTheme);
   const setTheme = useThemeStore((state) => state.setTheme);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
-
-  const user = useAuthStore((state) => state.user);
-  const initializeAuth = useAuthStore((state) => state.initializeAuth);
-  const signIn = useAuthStore((state) => state.signIn);
-  const signUp = useAuthStore((state) => state.signUp);
-  const isLoading = useAuthStore((state) => state.isLoading);
-  const error = useAuthStore((state) => state.error);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const allowAuthScreen = searchParams.get("auth") === "1";
+  const oauthStatus = searchParams.get("qf_link");
 
   useEffect(() => {
     initializeLocale();
@@ -39,16 +30,6 @@ function LoginPageContent() {
   useEffect(() => {
     initializeTheme();
   }, [initializeTheme]);
-
-  useEffect(() => {
-    void initializeAuth();
-  }, [initializeAuth]);
-
-  useEffect(() => {
-    if (!isLoading && user) {
-      router.push("/");
-    }
-  }, [isLoading, user, router]);
 
   useEffect(() => {
     if (!allowAuthScreen) {
@@ -60,27 +41,9 @@ function LoginPageContent() {
     return null;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!email || !password) {
-      return;
-    }
-
-    if (isSignUp) {
-      const success = await signUp(email, password);
-      if (success) {
-        setIsSignUp(false);
-        setPassword("");
-        router.replace("/login?auth=1");
-      }
-    } else {
-      const success = await signIn(email, password);
-      if (success) {
-        setEmail("");
-        setPassword("");
-      }
-    }
+  const handleOAuthStart = () => {
+    setIsRedirecting(true);
+    window.location.href = "/api/user/oauth/start";
   };
 
   return (
@@ -101,9 +64,7 @@ function LoginPageContent() {
             </h1>
           </div>
           <p className="mt-1 text-sm text-emerald-900/70 dark:text-emerald-200/80">
-            {isSignUp
-              ? t("auth.createYourAccount", locale)
-              : t("auth.signInToContinue", locale)}
+            {t("auth.quranAuthDescription", locale)}
           </p>
           <div className="mt-3 flex items-center justify-center gap-2">
             <span className="text-xs text-emerald-900/70 dark:text-emerald-200/80">
@@ -193,61 +154,28 @@ function LoginPageContent() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-emerald-950 dark:text-emerald-100"
-            >
-              {t("auth.email", locale)}
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t("auth.emailPlaceholder", locale)}
-              className="mt-1 w-full rounded-lg border border-emerald-900/20 bg-white px-4 py-2 text-sm text-emerald-950 placeholder-emerald-900/50 focus:border-emerald-700 focus:outline-none dark:border-emerald-200/20 dark:bg-emerald-950/60 dark:text-emerald-100 dark:placeholder-emerald-200/60"
-              disabled={isLoading}
-            />
+        {oauthStatus === "linked" ? (
+          <div className="mb-4 rounded-lg border border-emerald-700/30 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-300/25 dark:bg-emerald-950/40 dark:text-emerald-100">
+            {t("auth.oauthLinked", locale)}
           </div>
+        ) : null}
 
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-emerald-950 dark:text-emerald-100"
-            >
-              {t("auth.password", locale)}
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t("auth.passwordPlaceholder", locale)}
-              className="mt-1 w-full rounded-lg border border-emerald-900/20 bg-white px-4 py-2 text-sm text-emerald-950 placeholder-emerald-900/50 focus:border-emerald-700 focus:outline-none dark:border-emerald-200/20 dark:bg-emerald-950/60 dark:text-emerald-100 dark:placeholder-emerald-200/60"
-              disabled={isLoading}
-            />
+        {oauthStatus === "error" ? (
+          <div className="mb-4 rounded-lg border border-rose-700/30 bg-rose-50 p-3 text-sm text-rose-900 dark:border-rose-300/25 dark:bg-rose-950/40 dark:text-rose-100">
+            {t("auth.oauthError", locale)}
           </div>
+        ) : null}
 
-          {error && (
-            <div className="rounded-lg border border-rose-700/30 bg-rose-50 p-3 text-sm text-rose-900 dark:border-rose-300/25 dark:bg-rose-950/40 dark:text-rose-100">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={isLoading || !email || !password}
-            className="w-full rounded-lg bg-emerald-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading
-              ? t("auth.pleaseWait", locale)
-              : isSignUp
-                ? t("auth.createAccount", locale)
-                : t("auth.signIn", locale)}
-          </button>
-        </form>
+        <button
+          type="button"
+          onClick={handleOAuthStart}
+          disabled={isRedirecting}
+          className="w-full rounded-lg bg-emerald-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isRedirecting
+            ? t("auth.pleaseWait", locale)
+            : t("auth.signInWithQuran", locale)}
+        </button>
 
         <div className="mt-4">
           <button
@@ -259,25 +187,6 @@ function LoginPageContent() {
           >
             {t("auth.continueAsGuest", locale)}
           </button>
-        </div>
-
-        <div className="mt-6 border-t border-emerald-900/10 pt-6 text-center dark:border-emerald-200/10">
-          <p className="text-sm text-emerald-900/70 dark:text-emerald-200/80">
-            {isSignUp
-              ? `${t("auth.alreadyHaveAccount", locale)} `
-              : `${t("auth.dontHaveAccount", locale)} `}
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-              }}
-              className="font-medium text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 dark:hover:text-emerald-100"
-            >
-              {isSignUp
-                ? t("auth.signIn", locale)
-                : t("auth.createOne", locale)}
-            </button>
-          </p>
         </div>
       </div>
     </main>

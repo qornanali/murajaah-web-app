@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS public.qf_user_identities (
-  qf_user_id TEXT PRIMARY KEY,
+  qf_user_id TEXT PRIMARY KEY CHECK (length(trim(qf_user_id)) > 0),
   qf_sub TEXT UNIQUE,
   access_token TEXT NOT NULL,
   refresh_token TEXT,
@@ -14,9 +14,14 @@ CREATE TABLE IF NOT EXISTS public.qf_user_identities (
 CREATE INDEX IF NOT EXISTS idx_qf_user_identities_qf_sub
   ON public.qf_user_identities (qf_sub);
 
+CREATE INDEX IF NOT EXISTS idx_qf_user_identities_expires_at
+  ON public.qf_user_identities (access_token_expires_at);
+
 ALTER TABLE public.qf_user_identities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.qf_user_identities FORCE ROW LEVEL SECURITY;
 
 REVOKE ALL ON TABLE public.qf_user_identities FROM PUBLIC;
 REVOKE ALL ON TABLE public.qf_user_identities FROM anon;
 REVOKE ALL ON TABLE public.qf_user_identities FROM authenticated;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.qf_user_identities TO service_role;

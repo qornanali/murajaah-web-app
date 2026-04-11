@@ -9,7 +9,7 @@ Murajaah is an offline-first Quran memorization web app that combines guided rec
 - Due-review queue powered by SM-2 scheduling
 - Current/longest streak metrics from review activity
 - Surah tracks and package-based tracks
-- Guest mode (local-only) and authenticated mode (Supabase sync)
+- Guest mode (local-only) and Quran.com OAuth-linked mode
 - Offline queue via IndexedDB (Dexie) with background sync when online
 - EN/ID localization and light/dark theme support
 
@@ -17,7 +17,7 @@ Murajaah is an offline-first Quran memorization web app that combines guided rec
 
 - Next.js 14 (App Router, TypeScript)
 - React 18
-- Supabase (PostgreSQL + Auth)
+- Supabase (PostgreSQL)
 - Dexie (offline store + sync queue)
 - Zustand (state management)
 - Tailwind CSS
@@ -52,6 +52,7 @@ Required variables:
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
 - `QF_CLIENT_ID`
 - `QF_CLIENT_SECRET`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
 Optional variables:
 
@@ -65,6 +66,9 @@ Optional variables:
 - `QF_USER_AUTH_BASE_URL`
 - `QF_USER_API_BASE_PATH` (default: `/user/api/v1`)
 - `QF_USER_BOOKMARKS_PATH` (default: `/bookmarks`)
+- `QF_USER_OAUTH_REDIRECT_URI` (default: `${origin}/api/user/oauth/callback`)
+- `QF_USER_OAUTH_SCOPE` (default: `openid offline_access user bookmark`)
+- `QF_USER_PROFILE_PATH` (default: `/profile`)
 - `QF_CACHE_MAX_AGE`
 - `QF_CACHE_S_MAXAGE_CHAPTERS`
 - `QF_CACHE_SWR_CHAPTERS`
@@ -78,6 +82,7 @@ Notes:
 - `NEXT_PUBLIC_*` variables are exposed to the browser.
 - Keep `QF_CLIENT_SECRET` server-side only.
 - Never expose Supabase service role keys in frontend/runtime client code.
+- OAuth login/link routes: `/api/user/oauth/start`, `/api/user/oauth/callback`, `/api/user/oauth/status`.
 
 ## Database Setup
 
@@ -103,6 +108,10 @@ npm run lint
 - User API bookmark integration uses:
   - `GET /api/user/bookmarks`
   - `POST /api/user/bookmarks`
+- OAuth user linking uses:
+  - `GET /api/user/oauth/start`
+  - `GET /api/user/oauth/callback`
+  - `GET /api/user/oauth/status`
 - Internal routes call Quran Foundation APIs using OAuth2 token flow in server-only code.
 - Review writes are stored in Dexie first, then synced to Supabase using a retrying queue.
 - Guest progress is intentionally local-only.
