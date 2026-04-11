@@ -87,10 +87,36 @@ export async function GET(request: NextRequest) {
       throw new Error(error.message);
     }
 
+    const { data: appUser, error: appUserError } = await supabase
+      .from("app_users")
+      .upsert(
+        {
+          qf_user_id: identity.qfUserId,
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "qf_user_id",
+        },
+      )
+      .select("id")
+      .single();
+
+    if (appUserError || !appUser?.id) {
+      throw new Error(appUserError?.message ?? "Unable to create app user");
+    }
+
     const response = redirectWithStatus(request, "linked");
     clearOAuthCookies(response);
 
     response.cookies.set(QF_OAUTH_COOKIES.userId, identity.qfUserId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    });
+
+    response.cookies.set(QF_OAUTH_COOKIES.appUserId, appUser.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

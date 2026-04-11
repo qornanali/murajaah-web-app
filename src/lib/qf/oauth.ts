@@ -52,6 +52,7 @@ export const QF_OAUTH_COOKIES = {
   nonce: "qf_oauth_nonce",
   codeVerifier: "qf_oauth_code_verifier",
   userId: "qf_user_id",
+  appUserId: "qf_app_user_id",
 } as const;
 
 function normalizeBaseUrl(url: string): string {
