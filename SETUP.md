@@ -21,7 +21,7 @@ Minimum required values in `.env.local`:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
-SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+SUPABASE_SECRET_API_KEY=your-supabase-secret-api-key
 QF_CLIENT_ID=your-qf-client-id
 QF_CLIENT_SECRET=your-qf-client-secret
 ```
@@ -34,8 +34,7 @@ NEXT_PUBLIC_DEFAULT_RECITATION_ID=7
 NEXT_PUBLIC_AUDIO_CDN_BASE=https://audio.qurancdn.com
 
 # Quran Foundation User API (OAuth login + bookmarks)
-QF_USER_CLIENT_ID=your-user-scope-client-id
-QF_USER_CLIENT_SECRET=your-user-scope-client-secret
+# QF_CLIENT_ID and QF_CLIENT_SECRET above are reused — no separate user credentials needed
 QF_USER_OAUTH_REDIRECT_URI=http://localhost:3000/api/user/oauth/callback
 QF_USER_OAUTH_SCOPE=openid offline_access user bookmark
 QF_USER_SCOPE=user
@@ -43,17 +42,13 @@ QF_USER_API_BASE_PATH=/user/api/v1
 QF_USER_BOOKMARKS_PATH=/bookmarks
 QF_USER_PROFILE_PATH=/profile
 
-# QF API base URL overrides (defaults match QF_ENV)
-# QF_API_BASE_PRELIVE=https://apis-prelive.quran.foundation
-# QF_API_BASE_PRODUCTION=https://apis.quran.foundation
-# QF_AUTH_BASE_PRELIVE=https://prelive-oauth2.quran.foundation
-# QF_AUTH_BASE_PRODUCTION=https://oauth2.quran.foundation
-# QF_API_BASE_URL=https://custom-api-host.example.com/content/api/v4
-# QF_AUTH_BASE_URL=https://custom-auth-host.example.com/oauth2
-# QF_USER_API_BASE_URL=https://custom-user-api-host.example.com
-# QF_USER_AUTH_BASE_URL=https://custom-user-auth-host.example.com/oauth2
+# QF API base URL overrides (defaults are derived from QF_ENV — only set if using a proxy/mock)
+# QF_API_BASE_URL=https://apis-prelive.quran.foundation
+# QF_AUTH_BASE_URL=https://prelive-oauth2.quran.foundation
+# QF_USER_API_BASE_URL=
+# QF_USER_AUTH_BASE_URL=
 
-# QF scope overrides
+# Scope overrides
 # QF_CONTENT_SCOPE=content
 
 # Session and token tuning
@@ -66,6 +61,9 @@ QF_USER_PROFILE_PATH=/profile
 # BOOKMARK_RATE_LIMIT_WINDOW_MS=60000  # ms, default 60s
 # BOOKMARK_RATE_LIMIT_MAX=30           # requests per window, default 30
 ```
+
+> **Supabase Secret API key:** create a named Secret API key in your Supabase dashboard
+> (Settings → API → Secret keys) with bypass-RLS permission. Do not use the service role JWT.
 
 ## 3) Apply Supabase Migrations
 
@@ -98,5 +96,5 @@ Open http://localhost:3000.
 
 - `Supabase not configured`: check `NEXT_PUBLIC_SUPABASE_URL` and publishable/anon key.
 - Quran proxy errors (`/api/quran/*`): verify `QF_CLIENT_ID` and `QF_CLIENT_SECRET`.
-- OAuth link errors (`/api/user/oauth/*`): verify `SUPABASE_SERVICE_ROLE_KEY`, `QF_USER_OAUTH_REDIRECT_URI`, and registered redirect URI exact match.
+- OAuth link errors (`/api/user/oauth/*`): verify `SUPABASE_SECRET_API_KEY`, `QF_USER_OAUTH_REDIRECT_URI`, and registered redirect URI exact match.
 - Missing data/policy errors: re-check migration order and applied status.
