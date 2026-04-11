@@ -9,6 +9,7 @@ interface StatsSectionProps {
   locale: AppLocale;
   reviewedVerseKeys: Set<string>;
   newVerseKeysToday: Set<string>;
+  isUserApiConnected: boolean | null;
   currentStreak: number;
   longestStreak: number;
   visibleDueQueue: AyahProgressRow[];
@@ -35,6 +36,7 @@ export function StatsSection({
   locale,
   reviewedVerseKeys,
   newVerseKeysToday,
+  isUserApiConnected,
   currentStreak,
   longestStreak,
   visibleDueQueue,
@@ -115,6 +117,20 @@ export function StatsSection({
             </p>
           </div>
         </section>
+
+        {isUserApiConnected !== null ? (
+          <div
+            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+              isUserApiConnected
+                ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/35 dark:text-emerald-100"
+                : "bg-amber-100 text-amber-900 dark:bg-amber-900/35 dark:text-amber-100"
+            }`}
+          >
+            {isUserApiConnected
+              ? t("page.userApiConnected", locale)
+              : t("page.userApiUnavailable", locale)}
+          </div>
+        ) : null}
 
         {selectedPackageId &&
         surahMasteryData[selectedPackageId] &&

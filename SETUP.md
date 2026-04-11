@@ -37,6 +37,7 @@ QF_USER_SCOPE=user
 # QF_USER_CLIENT_ID=your-user-scope-client-id
 # QF_USER_CLIENT_SECRET=your-user-scope-client-secret
 # QF_USER_API_BASE_PATH=/user/api/v1
+# QF_USER_BOOKMARKS_PATH=/bookmarks
 ```
 
 ## 3) Apply Supabase Migrations

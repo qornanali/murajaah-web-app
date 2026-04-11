@@ -64,6 +64,7 @@ Optional variables:
 - `QF_USER_API_BASE_URL`
 - `QF_USER_AUTH_BASE_URL`
 - `QF_USER_API_BASE_PATH` (default: `/user/api/v1`)
+- `QF_USER_BOOKMARKS_PATH` (default: `/bookmarks`)
 - `QF_CACHE_MAX_AGE`
 - `QF_CACHE_S_MAXAGE_CHAPTERS`
 - `QF_CACHE_SWR_CHAPTERS`

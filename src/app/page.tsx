@@ -15,6 +15,7 @@ import { toUserError } from "@/lib/errorHandling";
 import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
 import { calculateStreakFromIsoDates } from "@/lib/streak";
+import { checkUserApiConnectivity } from "@/lib/qf/userBrowser";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
   fetchPublishedMemorizationPackages,
@@ -112,6 +113,9 @@ export default function Home() {
   );
   const [currentStreak, setCurrentStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
+  const [isUserApiConnected, setIsUserApiConnected] = useState<boolean | null>(
+    null,
+  );
   const [averageEaseFactor, setAverageEaseFactor] = useState<number | null>(
     null,
   );
@@ -433,6 +437,20 @@ export default function Home() {
 
     void loadEnrollments();
   }, [authenticatedUserId, guestUserId]);
+
+  useEffect(() => {
+    const loadUserApiStatus = async () => {
+      if (!authenticatedUserId) {
+        setIsUserApiConnected(null);
+        return;
+      }
+
+      const connected = await checkUserApiConnectivity();
+      setIsUserApiConnected(connected);
+    };
+
+    void loadUserApiStatus();
+  }, [authenticatedUserId]);
 
   useEffect(() => {
     if (!isGuestMode || !guestUserId) {
@@ -857,6 +875,7 @@ export default function Home() {
           locale={locale}
           reviewedVerseKeys={reviewedVerseKeys}
           newVerseKeysToday={newVerseKeysToday}
+          isUserApiConnected={isUserApiConnected}
           currentStreak={currentStreak}
           longestStreak={longestStreak}
           visibleDueQueue={visibleDueQueue}
