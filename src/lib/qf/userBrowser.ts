@@ -22,6 +22,50 @@ export async function checkUserApiConnectivity(): Promise<boolean> {
   }
 }
 
+export async function fetchLinkedUserProfile(): Promise<{
+  ok: boolean;
+  displayName?: string;
+  qfUserId?: string;
+  message?: string;
+}> {
+  try {
+    const response = await fetch("/api/user/profile", {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (response.ok) {
+      const payload = (await response.json().catch(() => null)) as {
+        displayName?: string;
+        qfUserId?: string;
+      } | null;
+
+      return {
+        ok: true,
+        displayName: payload?.displayName,
+        qfUserId: payload?.qfUserId,
+      };
+    }
+
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string;
+    } | null;
+
+    return {
+      ok: false,
+      message: payload?.message ?? "Failed to fetch linked profile",
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "Failed to fetch linked profile",
+    };
+  }
+}
+
 export async function createBookmarkForVerse(
   verseKey: string,
 ): Promise<{ ok: boolean; message?: string }> {

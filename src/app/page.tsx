@@ -15,7 +15,10 @@ import { toUserError } from "@/lib/errorHandling";
 import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
 import { calculateStreakFromIsoDates } from "@/lib/streak";
-import { checkUserApiConnectivity } from "@/lib/qf/userBrowser";
+import {
+  checkUserApiConnectivity,
+  fetchLinkedUserProfile,
+} from "@/lib/qf/userBrowser";
 import {
   fetchQfSessionStatus,
   type QfSessionStatus,
@@ -153,6 +156,7 @@ export default function Home() {
     qfUserId: null,
     appUserId: null,
   });
+  const [qfDisplayName, setQfDisplayName] = useState<string | null>(null);
 
   const authenticatedUserId = user?.id;
   const persistedUserId = authenticatedUserId ?? qfSession.appUserId;
@@ -471,6 +475,24 @@ export default function Home() {
 
     void loadUserApiStatus();
   }, [persistedUserId, isQfLinked]);
+
+  useEffect(() => {
+    const loadLinkedProfile = async () => {
+      if (!isQfLinked) {
+        setQfDisplayName(null);
+        return;
+      }
+
+      const profile = await fetchLinkedUserProfile();
+      if (profile.ok) {
+        setQfDisplayName(profile.displayName ?? profile.qfUserId ?? null);
+      } else {
+        setQfDisplayName(qfSession.qfUserId);
+      }
+    };
+
+    void loadLinkedProfile();
+  }, [isQfLinked, qfSession.qfUserId]);
 
   useEffect(() => {
     if (!isGuestMode || !guestUserId) {
@@ -822,6 +844,7 @@ export default function Home() {
       method: "POST",
     });
     setQfSession({ linked: false, qfUserId: null, appUserId: null });
+    setQfDisplayName(null);
     setIsUserApiConnected(null);
 
     router.push("/");
@@ -885,7 +908,9 @@ export default function Home() {
         locale={locale}
         theme={theme}
         isGuestMode={isGuestMode}
-        userEmail={user?.email ?? qfSession.qfUserId ?? undefined}
+        userEmail={
+          user?.email ?? qfDisplayName ?? qfSession.qfUserId ?? undefined
+        }
         onSetLocale={setLocale}
         onSetTheme={setTheme}
         onOpenInfoModal={() => setIsInfoModalOpen(true)}
