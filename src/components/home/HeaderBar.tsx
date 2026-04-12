@@ -217,15 +217,26 @@ export function HeaderBar({
               {t("auth.signIn", locale)}
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={() => {
-                void handleSignOut();
-              }}
-              className="rounded-lg bg-emerald-900/20 px-3 py-1.5 text-sm font-medium text-emerald-900 transition-colors hover:bg-emerald-900/30 dark:bg-emerald-100/20 dark:text-emerald-100 dark:hover:bg-emerald-100/30"
-            >
-              {t("auth.signOut", locale)}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  router.push("/bookmarks");
+                }}
+                className="rounded-lg bg-emerald-900/20 px-3 py-1.5 text-sm font-medium text-emerald-900 transition-colors hover:bg-emerald-900/30 dark:bg-emerald-100/20 dark:text-emerald-100 dark:hover:bg-emerald-100/30"
+              >
+                {t("bookmarks.title", locale)}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleSignOut();
+                }}
+                className="rounded-lg bg-emerald-900/20 px-3 py-1.5 text-sm font-medium text-emerald-900 transition-colors hover:bg-emerald-900/30 dark:bg-emerald-100/20 dark:text-emerald-100 dark:hover:bg-emerald-100/30"
+              >
+                {t("auth.signOut", locale)}
+              </button>
+            </>
           )}
         </div>
       </div>
