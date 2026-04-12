@@ -816,13 +816,13 @@ export default function Home() {
   const handleSignOut = async () => {
     if (user) {
       await signOut();
-    } else {
-      await fetch("/api/user/oauth/logout", {
-        method: "POST",
-      });
-      setQfSession({ linked: false, qfUserId: null, appUserId: null });
-      setIsUserApiConnected(null);
     }
+
+    await fetch("/api/user/oauth/logout", {
+      method: "POST",
+    });
+    setQfSession({ linked: false, qfUserId: null, appUserId: null });
+    setIsUserApiConnected(null);
 
     router.push("/");
   };
