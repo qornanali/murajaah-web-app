@@ -40,6 +40,22 @@ interface QfResolvedIdentity {
   qfSub: string | null;
 }
 
+function getOAuthErrorCode(
+  body: Record<string, unknown> | null,
+  fallbackStatus: number,
+): string {
+  if (typeof body?.error === "string" && body.error.trim()) {
+    return body.error.trim();
+  }
+  if (typeof body?.error_code === "string" && body.error_code.trim()) {
+    return body.error_code.trim();
+  }
+  if (typeof body?.code === "string" && body.code.trim()) {
+    return body.code.trim();
+  }
+  return `http_${fallbackStatus}`;
+}
+
 export class OAuthError extends Error {
   constructor(
     message: string,
@@ -161,7 +177,7 @@ export async function exchangeAuthorizationCode(params: {
       string,
       unknown
     > | null;
-    const errorCode = typeof body?.error === "string" ? body.error : null;
+    const errorCode = getOAuthErrorCode(body, response.status);
     throw new OAuthError(
       `OAuth token exchange failed with status ${response.status}`,
       response.status,
@@ -235,12 +251,11 @@ export async function resolveQfIdentity(params: {
         string,
         unknown
       > | null;
-      const errorCode =
-        typeof body?.error === "string" ? body.error : undefined;
+      const errorCode = getOAuthErrorCode(body, response.status);
       throw new OAuthError(
         `QF profile API returned ${response.status}`,
         response.status,
-        errorCode ?? null,
+        errorCode,
       );
     }
   } catch (err) {
