@@ -40,6 +40,17 @@ interface QfResolvedIdentity {
   qfSub: string | null;
 }
 
+export class OAuthError extends Error {
+  constructor(
+    message: string,
+    public readonly httpStatus?: number,
+    public readonly errorCode?: string | null,
+  ) {
+    super(message);
+    this.name = "OAuthError";
+  }
+}
+
 export const QF_OAUTH_COOKIES = {
   state: "qf_oauth_state",
   nonce: "qf_oauth_nonce",
@@ -146,8 +157,15 @@ export async function exchangeAuthorizationCode(params: {
   });
 
   if (!response.ok) {
-    throw new Error(
+    const body = (await response.json().catch(() => null)) as Record<
+      string,
+      unknown
+    > | null;
+    const errorCode = typeof body?.error === "string" ? body.error : null;
+    throw new OAuthError(
       `OAuth token exchange failed with status ${response.status}`,
+      response.status,
+      errorCode,
     );
   }
 

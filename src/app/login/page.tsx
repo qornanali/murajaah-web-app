@@ -22,6 +22,25 @@ function LoginPageContent() {
 
   const allowAuthScreen = searchParams.get("auth") === "1";
   const oauthStatus = searchParams.get("qf_link");
+  const oauthErrorReason = searchParams.get("qf_link_reason");
+
+  const KNOWN_OAUTH_REASONS = new Set([
+    "missing_params",
+    "state_mismatch",
+    "authorization_error",
+    "token_exchange_failed",
+    "identity_resolution_failed",
+    "db_error",
+    "user_creation_failed",
+    "unknown",
+  ]);
+  const oauthErrorKey =
+    oauthErrorReason && KNOWN_OAUTH_REASONS.has(oauthErrorReason)
+      ? (`auth.oauthError.${oauthErrorReason}` as const)
+      : "auth.oauthError";
+
+  const oauthHttpStatus = searchParams.get("qf_link_http_status");
+  const oauthErrorCode = searchParams.get("qf_link_error_code");
 
   useEffect(() => {
     initializeLocale();
@@ -162,7 +181,14 @@ function LoginPageContent() {
 
         {oauthStatus === "error" ? (
           <div className="mb-4 rounded-lg border border-rose-700/30 bg-rose-50 p-3 text-sm text-rose-900 dark:border-rose-300/25 dark:bg-rose-950/40 dark:text-rose-100">
-            {t("auth.oauthError", locale)}
+            {t(oauthErrorKey, locale)}
+            {(oauthErrorCode || oauthHttpStatus) && (
+              <p className="mt-1 text-xs opacity-60">
+                {[oauthErrorCode, oauthHttpStatus && `HTTP ${oauthHttpStatus}`]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
           </div>
         ) : null}
 

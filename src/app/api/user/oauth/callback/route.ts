@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
+  OAuthError,
   QF_OAUTH_COOKIES,
   exchangeAuthorizationCode,
   getQfOAuthConfig,
@@ -11,19 +12,57 @@ import { migrateAllGuestDataToUser } from "@/lib/qf/guestMigration";
 import { getGuestUserId } from "@/lib/guest";
 import { SESSION_COOKIE_MAX_AGE } from "@/lib/config";
 
+type OAuthErrorReason =
+  | "missing_params"
+  | "state_mismatch"
+  | "authorization_error"
+  | "token_exchange_failed"
+  | "identity_resolution_failed"
+  | "db_error"
+  | "user_creation_failed"
+  | "unknown";
+
 function clearOAuthCookies(response: NextResponse) {
   response.cookies.delete(QF_OAUTH_COOKIES.state);
   response.cookies.delete(QF_OAUTH_COOKIES.nonce);
   response.cookies.delete(QF_OAUTH_COOKIES.codeVerifier);
 }
 
-function redirectWithStatus(request: NextRequest, status: "linked" | "error") {
+function redirectWithStatus(
+  request: NextRequest,
+  status: "linked" | "error",
+  reason?: OAuthErrorReason,
+  httpStatus?: number,
+  errorCode?: string | null,
+) {
   const redirectUrl = new URL("/", request.nextUrl.origin);
   redirectUrl.searchParams.set("qf_link", status);
+  if (reason) {
+    redirectUrl.searchParams.set("qf_link_reason", reason);
+  }
+  if (httpStatus !== undefined) {
+    redirectUrl.searchParams.set("qf_link_http_status", String(httpStatus));
+  }
+  if (errorCode) {
+    redirectUrl.searchParams.set("qf_link_error_code", errorCode);
+  }
   return NextResponse.redirect(redirectUrl);
 }
 
 export async function GET(request: NextRequest) {
+  const authError = request.nextUrl.searchParams.get("error");
+  if (authError) {
+    const response = redirectWithStatus(
+      request,
+      "error",
+      "authorization_error",
+      undefined,
+      authError,
+    );
+    clearOAuthCookies(response);
+    return response;
+  }
+
   const code = request.nextUrl.searchParams.get("code");
   const returnedState = request.nextUrl.searchParams.get("state");
 
@@ -40,32 +79,61 @@ export async function GET(request: NextRequest) {
     !storedNonce ||
     !codeVerifier
   ) {
-    const response = redirectWithStatus(request, "error");
+    const response = redirectWithStatus(request, "error", "missing_params");
     clearOAuthCookies(response);
     return response;
   }
 
   if (returnedState !== storedState) {
-    const response = redirectWithStatus(request, "error");
+    const response = redirectWithStatus(request, "error", "state_mismatch");
+    clearOAuthCookies(response);
+    return response;
+  }
+
+  let tokenPayload: Awaited<ReturnType<typeof exchangeAuthorizationCode>>;
+  let identity: Awaited<ReturnType<typeof resolveQfIdentity>>;
+
+  const config = getQfOAuthConfig(request.nextUrl.origin);
+
+  try {
+    tokenPayload = await exchangeAuthorizationCode({
+      config,
+      code,
+      codeVerifier,
+    });
+  } catch (err) {
+    const httpStatus = err instanceof OAuthError ? err.httpStatus : undefined;
+    const errorCode =
+      err instanceof OAuthError ? (err.errorCode ?? undefined) : undefined;
+    const response = redirectWithStatus(
+      request,
+      "error",
+      "token_exchange_failed",
+      httpStatus,
+      errorCode,
+    );
     clearOAuthCookies(response);
     return response;
   }
 
   try {
-    const config = getQfOAuthConfig(request.nextUrl.origin);
-    const tokenPayload = await exchangeAuthorizationCode({
-      config,
-      code,
-      codeVerifier,
-    });
-
-    const identity = await resolveQfIdentity({
+    identity = await resolveQfIdentity({
       config,
       accessToken: tokenPayload.access_token,
       idToken: tokenPayload.id_token,
       expectedNonce: storedNonce,
     });
+  } catch {
+    const response = redirectWithStatus(
+      request,
+      "error",
+      "identity_resolution_failed",
+    );
+    clearOAuthCookies(response);
+    return response;
+  }
 
+  try {
     const expiresAt = new Date(Date.now() + tokenPayload.expires_in * 1000);
     const supabase = getSupabaseAdminClient();
 
@@ -87,7 +155,9 @@ export async function GET(request: NextRequest) {
     );
 
     if (error) {
-      throw new Error(error.message);
+      const response = redirectWithStatus(request, "error", "db_error");
+      clearOAuthCookies(response);
+      return response;
     }
 
     const { data: existingAppUser } = await supabase
@@ -113,7 +183,13 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (appUserError || !appUser?.id) {
-      throw new Error(appUserError?.message ?? "Unable to create app user");
+      const response = redirectWithStatus(
+        request,
+        "error",
+        "user_creation_failed",
+      );
+      clearOAuthCookies(response);
+      return response;
     }
 
     if (isNewUser) {
@@ -144,7 +220,7 @@ export async function GET(request: NextRequest) {
 
     return response;
   } catch {
-    const response = redirectWithStatus(request, "error");
+    const response = redirectWithStatus(request, "error", "unknown");
     clearOAuthCookies(response);
     return response;
   }
