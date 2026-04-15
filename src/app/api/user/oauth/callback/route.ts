@@ -28,6 +28,18 @@ function clearOAuthCookies(response: NextResponse) {
   response.cookies.delete(QF_OAUTH_COOKIES.codeVerifier);
 }
 
+function getAppOrigin(request: NextRequest): string {
+  const configuredUri = process.env.QF_USER_OAUTH_REDIRECT_URI?.trim();
+  if (configuredUri) {
+    try {
+      return new URL(configuredUri).origin;
+    } catch {
+      // fall through
+    }
+  }
+  return request.nextUrl.origin;
+}
+
 function redirectWithStatus(
   request: NextRequest,
   status: "linked" | "error",
@@ -35,7 +47,7 @@ function redirectWithStatus(
   httpStatus?: number,
   errorCode?: string | null,
 ) {
-  const redirectUrl = new URL("/", request.nextUrl.origin);
+  const redirectUrl = new URL("/", getAppOrigin(request));
   redirectUrl.searchParams.set("qf_link", status);
   if (reason) {
     redirectUrl.searchParams.set("qf_link_reason", reason);
