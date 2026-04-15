@@ -123,11 +123,16 @@ export async function GET(request: NextRequest) {
       idToken: tokenPayload.id_token,
       expectedNonce: storedNonce,
     });
-  } catch {
+  } catch (err) {
+    const httpStatus = err instanceof OAuthError ? err.httpStatus : undefined;
+    const errorCode =
+      err instanceof OAuthError ? (err.errorCode ?? undefined) : undefined;
     const response = redirectWithStatus(
       request,
       "error",
       "identity_resolution_failed",
+      httpStatus,
+      errorCode,
     );
     clearOAuthCookies(response);
     return response;

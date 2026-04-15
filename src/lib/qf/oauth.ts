@@ -191,13 +191,15 @@ export async function resolveQfIdentity(params: {
 
   if (idToken) {
     if (!jwtPayload?.nonce || jwtPayload.nonce !== expectedNonce) {
-      throw new Error("Invalid OAuth nonce");
+      throw new OAuthError("Invalid OAuth nonce", undefined, "nonce_mismatch");
     }
   }
 
   const profilePath = normalizePath(QF_USER_PROFILE_PATH, "/profile");
 
   let apiUserId: string | null = null;
+
+  let profileHttpStatus: number | undefined;
 
   try {
     const response = await fetch(
@@ -213,6 +215,8 @@ export async function resolveQfIdentity(params: {
       },
     );
 
+    profileHttpStatus = response.status;
+
     if (response.ok) {
       const payload = (await response.json().catch(() => null)) as Record<
         string,
@@ -226,8 +230,23 @@ export async function resolveQfIdentity(params: {
         null;
 
       apiUserId = maybeUserId;
+    } else {
+      const body = (await response.json().catch(() => null)) as Record<
+        string,
+        unknown
+      > | null;
+      const errorCode =
+        typeof body?.error === "string" ? body.error : undefined;
+      throw new OAuthError(
+        `QF profile API returned ${response.status}`,
+        response.status,
+        errorCode ?? null,
+      );
     }
-  } catch {
+  } catch (err) {
+    if (err instanceof OAuthError) {
+      throw err;
+    }
     apiUserId = null;
   }
 
@@ -235,7 +254,11 @@ export async function resolveQfIdentity(params: {
   const qfUserId = apiUserId ?? qfSub;
 
   if (!qfUserId) {
-    throw new Error("Unable to resolve Quran.com user identity");
+    throw new OAuthError(
+      "Unable to resolve Quran.com user identity",
+      profileHttpStatus,
+      "user_id_missing",
+    );
   }
 
   return {
