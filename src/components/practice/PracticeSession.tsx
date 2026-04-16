@@ -653,37 +653,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
             {progressLabel}
           </div>
         ) : null}
-
-        <button
-          type="button"
-          disabled={!ayah || isBookmarkSaving}
-          onClick={() => {
-            void handleBookmarkCurrentAyah();
-          }}
-          className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-            isBookmarked
-              ? "border-amber-900/40 bg-amber-900/15 text-amber-900 hover:bg-amber-900/20 dark:border-amber-100/30 dark:bg-amber-100/15 dark:text-amber-100 dark:hover:bg-amber-100/20"
-              : "border-emerald-900/20 bg-emerald-900/8 text-emerald-900 hover:bg-emerald-900/12 dark:border-emerald-100/20 dark:bg-emerald-100/10 dark:text-emerald-100 dark:hover:bg-emerald-100/15"
-          }`}
-        >
-          <Bookmark
-            className={`h-3.5 w-3.5 ${isBookmarked ? "fill-current" : ""}`}
-          />
-          {isBookmarkSaving
-            ? t("practice.bookmarkSaving", locale)
-            : isBookmarked
-              ? t("practice.bookmarkRemove", locale)
-              : t("practice.bookmark", locale)}
-        </button>
       </header>
-
-      {bookmarkMessage ? (
-        <div className="px-4 pt-3 sm:px-6">
-          <div className="rounded-xl border border-emerald-900/15 bg-emerald-900/6 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-100/15 dark:bg-emerald-100/10 dark:text-emerald-100">
-            {bookmarkMessage}
-          </div>
-        </div>
-      ) : null}
 
       <div className="flex flex-1 flex-col overflow-y-auto">
         {isComplete ? (
