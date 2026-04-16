@@ -76,6 +76,9 @@ export const QF_CONTENT_SCOPE =
 export const QF_USER_API_BASE_PATH =
   process.env.QF_USER_API_BASE_PATH?.trim() || "/user/api/v1";
 
+export const QF_USER_AUTH_API_BASE_PATH =
+  process.env.QF_USER_AUTH_API_BASE_PATH?.trim() || "/auth";
+
 export const QF_USER_OAUTH_SCOPE =
   process.env.QF_USER_OAUTH_SCOPE?.trim() ||
   "openid offline_access user bookmark";

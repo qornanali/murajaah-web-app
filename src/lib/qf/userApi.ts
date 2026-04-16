@@ -6,6 +6,7 @@ import {
   QF_USER_API_BASE,
   QF_USER_AUTH_BASE,
   QF_USER_API_BASE_PATH,
+  QF_USER_AUTH_API_BASE_PATH,
   QF_CLIENT_ID,
   QF_CLIENT_SECRET,
   QF_USER_SCOPE,
@@ -240,6 +241,7 @@ export async function qfUserApiRequestForLinkedUser(
   path: string,
   init?: RequestInit,
   hasRetried = false,
+  basePath?: string,
 ): Promise<Response> {
   if (!qfUserId) {
     throw new Error(MISSING_LINKED_USER_ERROR);
@@ -247,7 +249,7 @@ export async function qfUserApiRequestForLinkedUser(
 
   const { clientId } = getCredentials();
   const accessToken = await getLinkedUserAccessToken(qfUserId);
-  const apiPrefix = normalizeApiPrefix(QF_USER_API_BASE_PATH);
+  const apiPrefix = normalizeApiPrefix(basePath ?? QF_USER_API_BASE_PATH);
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const url = `${QF_USER_API_BASE}${apiPrefix}${normalizedPath}`;
 
@@ -264,7 +266,7 @@ export async function qfUserApiRequestForLinkedUser(
 
   if (response.status === 401 && !hasRetried) {
     await getLinkedUserAccessToken(qfUserId, true);
-    return qfUserApiRequestForLinkedUser(qfUserId, path, init, true);
+    return qfUserApiRequestForLinkedUser(qfUserId, path, init, true, basePath);
   }
 
   if (response.status === 403) {
@@ -272,6 +274,21 @@ export async function qfUserApiRequestForLinkedUser(
   }
 
   return response;
+}
+
+export async function qfUserApiRequestForLinkedUserAuth(
+  qfUserId: string | null,
+  path: string,
+  init?: RequestInit,
+  hasRetried = false,
+): Promise<Response> {
+  return qfUserApiRequestForLinkedUser(
+    qfUserId,
+    path,
+    init,
+    hasRetried,
+    QF_USER_AUTH_API_BASE_PATH,
+  );
 }
 
 export async function qfUserApiRequest(
@@ -314,4 +331,5 @@ export {
   MISSING_LINKED_USER_ERROR,
   MISSING_REFRESH_TOKEN_ERROR,
   MISSING_USER_CREDENTIALS_ERROR,
+  qfUserApiRequestForLinkedUserAuth,
 };

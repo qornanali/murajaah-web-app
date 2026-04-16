@@ -6,7 +6,7 @@ import {
   MISSING_LINKED_USER_ERROR,
   MISSING_REFRESH_TOKEN_ERROR,
   MISSING_USER_CREDENTIALS_ERROR,
-  qfUserApiRequestForLinkedUser,
+  qfUserApiRequestForLinkedUserAuth,
 } from "@/lib/qf/userApi";
 import { QF_OAUTH_COOKIES } from "@/lib/qf/oauth";
 import {
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
   const qfUserId = request.cookies.get(QF_OAUTH_COOKIES.userId)?.value ?? null;
 
   try {
-    const response = await qfUserApiRequestForLinkedUser(
+    const response = await qfUserApiRequestForLinkedUserAuth(
       qfUserId,
       `${BOOKMARKS_PATH}${search}`,
       {
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const response = await qfUserApiRequestForLinkedUser(
+    const response = await qfUserApiRequestForLinkedUserAuth(
       qfUserId,
       BOOKMARKS_PATH,
       {
@@ -159,7 +159,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    const response = await qfUserApiRequestForLinkedUser(
+    const response = await qfUserApiRequestForLinkedUserAuth(
       qfUserId,
       `${BOOKMARKS_PATH}/${encodeURIComponent(verseKey)}`,
       {

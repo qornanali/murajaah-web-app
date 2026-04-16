@@ -3,7 +3,7 @@ import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { QF_OAUTH_COOKIES } from "@/lib/qf/oauth";
 import {
-  qfUserApiRequestForLinkedUser,
+  qfUserApiRequestForLinkedUserAuth,
   MISSING_LINKED_USER_ERROR,
   LINKED_IDENTITY_NOT_FOUND_ERROR,
   MISSING_REFRESH_TOKEN_ERROR,
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const response = await qfUserApiRequestForLinkedUser(
+    const response = await qfUserApiRequestForLinkedUserAuth(
       qfUserId,
       "/bookmarks/check",
       {
