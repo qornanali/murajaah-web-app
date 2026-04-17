@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle, BookOpen } from "lucide-react";
+import { ArrowLeft, CheckCircle, BookOpen, ChevronDown } from "lucide-react";
 
 import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
-import { murajaahDB } from "@/lib/offline/db";
+import { murajaahDB, type AyahProgressRow } from "@/lib/offline/db";
 import { fetchAyahByKey, toVerseKey } from "@/lib/quranApi";
 import { getSurahName } from "@/lib/quranMeta";
 import {
@@ -25,7 +25,7 @@ import { calculateSM2, type SM2Rating } from "@/lib/srs";
 import { toUserError } from "@/lib/errorHandling";
 import { useAuthStore } from "@/store/authStore";
 import { useLocaleStore } from "@/store/localeStore";
-import { useReviewStore } from "@/store/reviewStore";
+import { useReviewStore, type SessionRelearnItem } from "@/store/reviewStore";
 import { type AyahCardData } from "@/components/quran/AyahCard";
 
 interface PracticeSessionProps {
@@ -40,6 +40,16 @@ interface PostRatingReveal {
   remainingSeconds: number;
   expiresAt: number;
   sessionId: number;
+}
+
+interface UndoSnapshot {
+  rating: SM2Rating;
+  ratedAyah: AyahCardData;
+  prevProgress: AyahProgressRow | null;
+  currentRow: AyahProgressRow;
+  prevQueueIndex: number;
+  prevRelearnQueue: SessionRelearnItem[];
+  wasComplete: boolean;
 }
 
 const AUTO_REVEAL_RATINGS: ReadonlySet<SM2Rating> = new Set([1, 2]);
@@ -162,6 +172,12 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
     (state) => state.clearSessionRelearn,
   );
   const latestProgress = useReviewStore((state) => state.latestProgress);
+  const restoreAyahProgress = useReviewStore(
+    (state) => state.restoreAyahProgress,
+  );
+  const restoreSessionRelearnQueue = useReviewStore(
+    (state) => state.restoreSessionRelearnQueue,
+  );
 
   const [guestUserId, setGuestUserId] = useState<string | null>(null);
   const [qfSession, setQfSession] = useState<QfSessionStatus | null>(null);
@@ -183,11 +199,15 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
     useState<PostRatingReveal | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [ratingCounts, setRatingCounts] = useState<Record<SM2Rating, number>>({ 1: 0, 2: 0, 3: 0, 4: 0 });
+  const [undoSnapshot, setUndoSnapshot] = useState<UndoSnapshot | null>(null);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const feedbackTimerRef = useRef<number | null>(null);
   const postRatingRevealFinalizingRef = useRef(false);
   const sessionInitializedRef = useRef(false);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeUserId = user?.id ?? qfSession?.appUserId ?? guestUserId;
 
@@ -378,6 +398,9 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
     return () => {
       if (feedbackTimerRef.current !== null)
         window.clearTimeout(feedbackTimerRef.current);
+      if (undoTimerRef.current !== null) clearTimeout(undoTimerRef.current);
+      if (completionTimerRef.current !== null)
+        clearTimeout(completionTimerRef.current);
     };
   }, []);
 
@@ -409,12 +432,33 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
         (item) => item.verseKey === currentVerseKey,
       );
 
-      await rateAyah({
+      const prevProgress = useReviewStore.getState().latestProgress;
+      const prevQueueIndex = queueIndex;
+      const prevRelearnQueue = sessionRelearnQueue;
+
+      const currentRow = await rateAyah({
         userId: activeUserId,
         surahNumber: ratedAyah.surahNumber,
         ayahNumber: ratedAyah.ayahNumber,
         rating,
       });
+
+      setRatingCounts((prev) => ({ ...prev, [rating]: prev[rating] + 1 }));
+
+      if (undoTimerRef.current !== null) clearTimeout(undoTimerRef.current);
+      setUndoSnapshot({
+        rating,
+        ratedAyah,
+        prevProgress,
+        currentRow,
+        prevQueueIndex,
+        prevRelearnQueue,
+        wasComplete: false,
+      });
+      undoTimerRef.current = setTimeout(() => {
+        setUndoSnapshot(null);
+        undoTimerRef.current = null;
+      }, 5000);
 
       let nextRelearnQueue = sessionRelearnQueue;
       const shouldRelearn = rating === 1 || (rating === 2 && !isInRelearning);
@@ -441,7 +485,13 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
       }
 
       setIsComplete(true);
-      setTimeout(() => router.push("/"), 1800);
+      setUndoSnapshot((prev) => (prev ? { ...prev, wasComplete: true } : null));
+      if (completionTimerRef.current !== null)
+        clearTimeout(completionTimerRef.current);
+      completionTimerRef.current = setTimeout(() => {
+        completionTimerRef.current = null;
+        router.push("/");
+      }, 6000);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -458,6 +508,12 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
 
   const handleRate = (rating: SM2Rating) => {
     if (!ayah || isSaving || postRatingReveal) return;
+
+    if (undoTimerRef.current !== null) {
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+    setUndoSnapshot(null);
 
     if (AUTO_REVEAL_RATINGS.has(rating)) {
       const totalSeconds = estimateRevealDurationSeconds(ayah.textUthmani);
@@ -539,6 +595,33 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
     });
   };
 
+  const handleUndo = async () => {
+    if (!undoSnapshot || isSaving) return;
+    const snapshot = undoSnapshot;
+    if (undoTimerRef.current !== null) {
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+    setUndoSnapshot(null);
+    if (snapshot.wasComplete) {
+      if (completionTimerRef.current !== null) {
+        clearTimeout(completionTimerRef.current);
+        completionTimerRef.current = null;
+      }
+      setIsComplete(false);
+    }
+    setRatingCounts((prev) => ({
+      ...prev,
+      [snapshot.rating]: Math.max(0, prev[snapshot.rating] - 1),
+    }));
+    restoreSessionRelearnQueue(snapshot.prevRelearnQueue);
+    setQueueIndex(snapshot.prevQueueIndex);
+    await restoreAyahProgress(snapshot.prevProgress, snapshot.currentRow);
+    void loadAyahByKey(
+      toVerseKey(snapshot.ratedAyah.surahNumber, snapshot.ratedAyah.ayahNumber),
+    );
+  };
+
   const isQueueEmpty =
     packagesReady && sessionQueue.length === 0 && !ayahLoading;
   const progressLabel =
@@ -602,7 +685,17 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
 
       <div className="flex flex-1 flex-col overflow-y-auto">
         {isComplete ? (
-          <CompletionState locale={locale} />
+          <SessionSummary
+            locale={locale}
+            ratingCounts={ratingCounts}
+            onReturnHome={() => {
+              if (completionTimerRef.current !== null) {
+                clearTimeout(completionTimerRef.current);
+                completionTimerRef.current = null;
+              }
+              router.push("/");
+            }}
+          />
         ) : isQueueEmpty ? (
           <EmptyState locale={locale} onBack={() => router.push("/")} />
         ) : ayahLoading && !ayah ? (
@@ -673,6 +766,17 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
           </div>
         </footer>
       )}
+      {undoSnapshot && !isSaving && (
+        <div className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 sm:bottom-28">
+          <button
+            type="button"
+            onClick={() => void handleUndo()}
+            className="flex items-center gap-2 rounded-2xl bg-emerald-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:bg-emerald-800 active:scale-95 dark:bg-emerald-200 dark:text-emerald-950"
+          >
+            {t("practice.undo", locale)}
+          </button>
+        </div>
+      )}
     </main>
   );
 }
@@ -731,6 +835,9 @@ function AyahDisplay({
             >
               {t("practice.showHint", locale)}
             </button>
+            <div className="flex flex-col items-center text-emerald-900/30 dark:text-emerald-100/30">
+              <ChevronDown className="h-5 w-5 animate-bounce" />
+            </div>
           </div>
         )}
 
@@ -842,22 +949,61 @@ function AyahDisplay({
   );
 }
 
-function CompletionState({
+function SessionSummary({
   locale,
+  ratingCounts,
+  onReturnHome,
 }: {
   locale: ReturnType<typeof useLocaleStore.getState>["locale"];
+  ratingCounts: Record<SM2Rating, number>;
+  onReturnHome: () => void;
 }) {
+  const total = Object.values(ratingCounts).reduce((a, b) => a + b, 0);
+  const summaryRows: Array<{
+    labelKey: string;
+    value: SM2Rating;
+    colorClass: string;
+  }> = [
+    { labelKey: "rating.again", value: 1, colorClass: "text-rose-700 dark:text-rose-400" },
+    { labelKey: "rating.hard", value: 2, colorClass: "text-amber-700 dark:text-amber-400" },
+    { labelKey: "rating.good", value: 3, colorClass: "text-emerald-700 dark:text-emerald-400" },
+    { labelKey: "rating.easy", value: 4, colorClass: "text-teal-700 dark:text-teal-400" },
+  ];
+
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-12 text-center">
+    <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-12 text-center">
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900">
         <CheckCircle className="h-8 w-8 text-emerald-700 dark:text-emerald-300" />
       </div>
-      <p className="text-xl font-bold text-emerald-950 dark:text-emerald-50">
-        {t("practice.sessionComplete", locale)}
-      </p>
-      <p className="text-sm text-emerald-900/60 dark:text-emerald-100/60">
-        {t("practice.sessionCompleteSubtitle", locale)}
-      </p>
+      <div className="space-y-1">
+        <p className="text-xl font-bold text-emerald-950 dark:text-emerald-50">
+          {t("practice.sessionComplete", locale)}
+        </p>
+        <p className="text-sm text-emerald-900/60 dark:text-emerald-100/60">
+          {total} {t("practice.summary.reviewed", locale)}
+        </p>
+      </div>
+      <div className="w-full max-w-xs space-y-2 rounded-2xl border border-emerald-900/10 bg-emerald-900/5 px-5 py-4 dark:border-emerald-100/10 dark:bg-emerald-100/5">
+        {summaryRows
+          .filter((row) => ratingCounts[row.value] > 0)
+          .map((row) => (
+            <div key={row.value} className="flex items-center justify-between text-sm">
+              <span className={`font-semibold ${row.colorClass}`}>
+                {t(row.labelKey, locale)}
+              </span>
+              <span className="font-medium text-emerald-950 dark:text-emerald-50">
+                {ratingCounts[row.value]}
+              </span>
+            </div>
+          ))}
+      </div>
+      <button
+        type="button"
+        onClick={onReturnHome}
+        className="rounded-2xl bg-emerald-900 px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-emerald-800 active:scale-95 dark:bg-emerald-200 dark:text-emerald-950 dark:hover:bg-emerald-100"
+      >
+        {t("practice.summary.returnHome", locale)}
+      </button>
     </div>
   );
 }

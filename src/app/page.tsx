@@ -911,6 +911,7 @@ export default function Home() {
         userEmail={
           user?.email ?? qfDisplayName ?? qfSession.qfUserId ?? undefined
         }
+        dueCount={dueQueue.length}
         onSetLocale={setLocale}
         onSetTheme={setTheme}
         onOpenInfoModal={() => setIsInfoModalOpen(true)}

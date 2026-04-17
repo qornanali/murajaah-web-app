@@ -8,6 +8,7 @@ interface HeaderBarProps {
   theme: "light" | "dark";
   isGuestMode: boolean;
   userEmail: string | undefined;
+  dueCount?: number;
   onSetLocale: (locale: AppLocale) => void;
   onSetTheme: (theme: "light" | "dark") => void;
   onOpenInfoModal: () => void;
@@ -20,6 +21,7 @@ export function HeaderBar({
   theme,
   isGuestMode,
   userEmail,
+  dueCount,
   onSetLocale,
   onSetTheme,
   onOpenInfoModal,
@@ -56,14 +58,21 @@ export function HeaderBar({
     <div className="mb-6 w-full max-w-4xl rounded-[28px] border border-emerald-900/10 bg-white/40 px-5 py-4 shadow-[0_20px_60px_-40px_rgba(6,78,59,0.5)] backdrop-blur-sm dark:border-emerald-100/10 dark:bg-emerald-950/35">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <Image
-            src="/icon.svg"
-            alt="Murajaah logo"
-            width={40}
-            height={40}
-            priority
-            className="h-10 w-10 shrink-0 rounded-xl"
-          />
+          <div className="relative shrink-0">
+            <Image
+              src="/icon.svg"
+              alt="Murajaah logo"
+              width={40}
+              height={40}
+              priority
+              className="h-10 w-10 rounded-xl"
+            />
+            {dueCount !== undefined && dueCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold leading-none text-white dark:bg-emerald-400 dark:text-emerald-950">
+                {dueCount > 99 ? "99+" : dueCount}
+              </span>
+            )}
+          </div>
           <div className="hidden min-w-0 text-sm text-emerald-900/70 sm:block dark:text-emerald-200/80">
             <p className="text-base font-semibold text-emerald-950 dark:text-emerald-100">
               Murajaah

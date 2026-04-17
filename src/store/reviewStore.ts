@@ -59,6 +59,11 @@ interface ReviewState {
     surahNumber: number,
     ayahCount: number,
   ) => Promise<SurahMastery>;
+  restoreAyahProgress: (
+    prevRow: AyahProgressRow | null,
+    currentRow: AyahProgressRow,
+  ) => Promise<void>;
+  restoreSessionRelearnQueue: (queue: SessionRelearnItem[]) => void;
 }
 
 function SURAH_AYAH_COUNTS(): Record<number, number> {
@@ -429,5 +434,25 @@ export const useReviewStore = create<ReviewState>((set) => ({
       forwardMastery,
       randomMastery,
     };
+  },
+
+  restoreAyahProgress: async (prevRow, currentRow) => {
+    if (prevRow) {
+      await murajaahDB.ayahProgress.put(prevRow);
+    } else {
+      await murajaahDB.ayahProgress.delete(currentRow.id);
+    }
+    set((state) => ({
+      latestProgress: prevRow,
+      dueQueue: prevRow
+        ? state.dueQueue.some((r) => r.id === prevRow.id)
+          ? state.dueQueue
+          : [...state.dueQueue, prevRow]
+        : state.dueQueue,
+    }));
+  },
+
+  restoreSessionRelearnQueue: (queue) => {
+    set({ sessionRelearnQueue: queue });
   },
 }));
