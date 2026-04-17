@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle, BookOpen, Bookmark } from "lucide-react";
+import { ArrowLeft, CheckCircle, BookOpen } from "lucide-react";
 
 import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
@@ -17,11 +17,6 @@ import {
   estimateRevealDurationSeconds,
   splitAyahByWaqf,
 } from "@/lib/quranUtils";
-import {
-  createBookmarkForVerse,
-  deleteBookmarkForVerse,
-  checkBookmarkStatus,
-} from "@/lib/qf/userBrowser";
 import { PACKAGE_CATALOG } from "@/lib/packages/catalog";
 import { fetchPublishedMemorizationPackages } from "@/lib/packages/api";
 import { getPackageVerseKeys } from "@/lib/packages/progress";
@@ -188,9 +183,6 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
     useState<PostRatingReveal | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
-  const [isBookmarkSaving, setIsBookmarkSaving] = useState(false);
-  const [bookmarkMessage, setBookmarkMessage] = useState<string | null>(null);
-  const [isBookmarked, setIsBookmarked] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const feedbackTimerRef = useRef<number | null>(null);
@@ -389,62 +381,14 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
     };
   }, []);
 
-  const handleBookmarkCurrentAyah = async () => {
-    if (!ayah || isBookmarkSaving) {
-      return;
-    }
-
-    if (!user?.id && !qfSession?.linked) {
-      setBookmarkMessage(t("practice.bookmarkSignInRequired", locale));
-      return;
-    }
-
-    setIsBookmarkSaving(true);
-    setBookmarkMessage(null);
-
-    const verseKey = toVerseKey(ayah.surahNumber, ayah.ayahNumber);
-
-    if (isBookmarked) {
-      const result = await deleteBookmarkForVerse(verseKey);
-      if (result.ok) {
-        setIsBookmarked(false);
-        setBookmarkMessage(t("practice.bookmarkRemoved", locale));
-      } else {
-        setBookmarkMessage(
-          result.message ?? t("practice.bookmarkRemovalFailed", locale),
-        );
-      }
-    } else {
-      const result = await createBookmarkForVerse(verseKey);
-      if (result.ok) {
-        setIsBookmarked(true);
-        setBookmarkMessage(t("practice.bookmarkSaved", locale));
-      } else {
-        setBookmarkMessage(
-          result.message ?? t("practice.bookmarkFailed", locale),
-        );
-      }
-    }
-
-    setIsBookmarkSaving(false);
-  };
-
   const loadAyahByKey = async (verseKey: string) => {
     setAyahLoading(true);
     setAyahError(null);
-    setIsBookmarked(false);
     try {
       const data = await fetchAyahByKey(verseKey);
       setAyah(data);
       if (activeUserId) {
         void loadAyahProgress(activeUserId, data.surahNumber, data.ayahNumber);
-      }
-
-      if (user?.id || qfSession?.linked) {
-        const bookmarkStatus = await checkBookmarkStatus(verseKey);
-        if (bookmarkStatus.ok && bookmarkStatus.bookmarks) {
-          setIsBookmarked(bookmarkStatus.bookmarks[verseKey] ?? false);
-        }
       }
     } catch (err) {
       setAyahError(toUserError("QURAN-AYAH-001", err));
