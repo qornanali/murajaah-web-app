@@ -473,7 +473,8 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
       });
 
       let nextRelearnQueue = sessionRelearnQueue;
-      if (rating <= 2) {
+      const shouldRelearn = rating === 1 || (rating === 2 && !isInRelearning);
+      if (shouldRelearn) {
         nextRelearnQueue = enqueueSessionRelearn({
           surahNumber: ratedAyah.surahNumber,
           ayahNumber: ratedAyah.ayahNumber,
