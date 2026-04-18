@@ -95,11 +95,6 @@ export function HeaderBar({
                   🔥 {currentStreak}
                 </span>
               )}
-              {isUserApiConnected === true && (
-                <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-900/35 dark:text-emerald-300">
-                  ✓ Q
-                </span>
-              )}
             </div>
             <p className="hidden sm:block">
               {isGuestMode ? (
