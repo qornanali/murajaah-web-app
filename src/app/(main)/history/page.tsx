@@ -194,9 +194,17 @@ export default function HistoryPage() {
     <main className="min-h-screen px-4 py-6 animate-fade-in">
       <div className="mx-auto max-w-2xl space-y-5">
         <div className="animate-slide-up">
-          <h1 className="text-2xl font-bold text-emerald-950 dark:text-emerald-100">
-            {t("page.historySectionTitle", locale)}
-          </h1>
+          <div className="flex items-center gap-3 rounded-[28px] border border-emerald-900/10 bg-white/40 px-5 py-4 shadow-[0_20px_60px_-40px_rgba(6,78,59,0.35)] backdrop-blur-sm dark:border-emerald-100/10 dark:bg-emerald-950/35">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-900/30">
+              <Flame className="h-5 w-5 text-orange-600 dark:text-orange-400" strokeWidth={1.8} />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-emerald-950 dark:text-emerald-100">
+                {t("page.historySectionTitle", locale)}
+              </h1>
+              <p className="text-xs text-emerald-900/55 dark:text-emerald-200/55">Your streaks &amp; review stats</p>
+            </div>
+          </div>
         </div>
 
         <div className="animate-slide-up-delay-1 relative overflow-hidden rounded-[28px] border border-orange-200/60 bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 p-6 shadow-[0_20px_60px_-30px_rgba(234,88,12,0.25)] dark:border-orange-800/30 dark:from-orange-950/40 dark:via-amber-950/30 dark:to-yellow-950/20">

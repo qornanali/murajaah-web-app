@@ -253,9 +253,17 @@ export default function ProfilePage() {
     <main className="min-h-screen px-4 py-6 animate-fade-in">
       <div className="mx-auto max-w-2xl space-y-4">
         <div className="animate-slide-up mb-2">
-          <h1 className="text-2xl font-bold text-emerald-950 dark:text-emerald-100">
-            Profile
-          </h1>
+          <div className="flex items-center gap-3 rounded-[28px] border border-emerald-900/10 bg-white/40 px-5 py-4 shadow-[0_20px_60px_-40px_rgba(6,78,59,0.35)] backdrop-blur-sm dark:border-emerald-100/10 dark:bg-emerald-950/35">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-900/8 dark:bg-emerald-100/10">
+              <User className="h-5 w-5 text-emerald-800 dark:text-emerald-300" strokeWidth={1.8} />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-emerald-950 dark:text-emerald-100">Profile</h1>
+              <p className="text-xs text-emerald-900/55 dark:text-emerald-200/55">
+                {isGuestMode ? t("page.localOnly", locale) : t("auth.loggedInAs", locale)}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Account hero card */}
