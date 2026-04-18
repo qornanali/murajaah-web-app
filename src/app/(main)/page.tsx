@@ -130,6 +130,7 @@ export default function Home() {
   const [qfDisplayName, setQfDisplayName] = useState<string | null>(null);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [isQfSessionLoading, setIsQfSessionLoading] = useState(true);
+  const [isDisplayNameLoading, setIsDisplayNameLoading] = useState(true);
   const [isProgressLoading, setIsProgressLoading] = useState(true);
   const [isSurahTracksLoading, setIsSurahTracksLoading] = useState(true);
   const [isEnrollmentsLoading, setIsEnrollmentsLoading] = useState(true);
@@ -413,16 +414,21 @@ export default function Home() {
 
   useEffect(() => {
     const loadLinkedProfile = async () => {
-      if (!isQfLinked) {
-        setQfDisplayName(null);
-        return;
-      }
+      setIsDisplayNameLoading(true);
+      try {
+        if (!isQfLinked) {
+          setQfDisplayName(null);
+          return;
+        }
 
-      const profile = await fetchLinkedUserProfile();
-      if (profile.ok) {
-        setQfDisplayName(profile.displayName ?? profile.qfUserId ?? null);
-      } else {
-        setQfDisplayName(qfSession.qfUserId);
+        const profile = await fetchLinkedUserProfile();
+        if (profile.ok) {
+          setQfDisplayName(profile.displayName ?? profile.qfUserId ?? null);
+        } else {
+          setQfDisplayName(qfSession.qfUserId);
+        }
+      } finally {
+        setIsDisplayNameLoading(false);
       }
     };
 
@@ -452,6 +458,7 @@ export default function Home() {
 
   useEffect(() => {
     const loadProgressState = async () => {
+      setIsProgressLoading(true);
       if (!activeUserId) {
         setReviewedVerseKeys(new Set());
         setCurrentStreak(0);
@@ -776,7 +783,7 @@ export default function Home() {
         }
         dueCount={dueQueue.length}
         currentStreak={currentStreak}
-        isProfileLoading={!isInitialized || isQfSessionLoading}
+        isProfileLoading={!isInitialized || isQfSessionLoading || isDisplayNameLoading}
         isStreakLoading={isProgressLoading}
         onSetLocale={setLocale}
         onSetTheme={setTheme}

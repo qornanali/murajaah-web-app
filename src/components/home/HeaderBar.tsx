@@ -80,13 +80,6 @@ export function HeaderBar({
             )}
             </div>
           </div>
-          {isStreakLoading ? (
-            <span className="inline-block h-4 w-12 animate-pulse rounded-full bg-orange-100 sm:hidden dark:bg-orange-900/30" />
-          ) : currentStreak !== undefined && currentStreak > 0 ? (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700 sm:hidden dark:bg-orange-900/30 dark:text-orange-300">
-              🔥 {currentStreak}
-            </span>
-          ) : null}
           <div className="hidden min-w-0 text-sm text-emerald-900/70 sm:block dark:text-emerald-200/80">
             <div className="flex items-center gap-2">
               <p className="text-base font-semibold text-emerald-950 dark:text-emerald-100">
@@ -233,6 +226,18 @@ export function HeaderBar({
           )}
         </div>
       </div>
+
+      {(isStreakLoading || (currentStreak !== undefined && currentStreak > 0)) && (
+        <div className="mt-2.5 flex items-center sm:hidden">
+          {isStreakLoading ? (
+            <span className="inline-block h-5 w-16 animate-pulse rounded-full bg-orange-100 dark:bg-orange-900/30" />
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-1 text-[11px] font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+              🔥 {currentStreak} day{currentStreak !== 1 ? "s" : ""} streak
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
