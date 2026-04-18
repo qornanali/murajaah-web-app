@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Flame, BookOpen, Loader2 } from "lucide-react";
+import { Flame, BookOpen, Loader2, Info } from "lucide-react";
 
 import { t } from "@/lib/i18n";
 import { useLocaleStore } from "@/store/localeStore";
@@ -45,6 +45,7 @@ export default function HistoryPage() {
   const [averageEaseFactor, setAverageEaseFactor] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [guestUserId, setGuestUserId] = useState<string | null>(null);
+  const [efInfoOpen, setEfInfoOpen] = useState(false);
   const [packageStatusById, setPackageStatusById] = useState<Record<string, PackageEnrollmentStatus>>({});
   const [qfSession, setQfSession] = useState<QfSessionStatus>({
     linked: false,
@@ -265,6 +266,7 @@ export default function HistoryPage() {
             {
               label: t("page.averageEf", locale),
               value: averageEaseFactor?.toFixed(2) ?? "–",
+              isEf: true,
             },
             {
               label: t("page.longestStreak", locale),
@@ -277,12 +279,43 @@ export default function HistoryPage() {
               style={{ animationDelay: `${200 + i * 60}ms` }}
               className="animate-slide-up rounded-[20px] border border-emerald-900/10 bg-white/70 p-4 shadow-[0_8px_24px_-12px_rgba(6,78,59,0.12)] backdrop-blur-sm dark:border-emerald-100/10 dark:bg-emerald-950/50"
             >
-              <p className="text-[11px] font-medium leading-tight text-emerald-900/60 dark:text-emerald-200/60">
-                {stat.label}
-              </p>
+              <div className="flex items-center gap-1">
+                <p className="text-[11px] font-medium leading-tight text-emerald-900/60 dark:text-emerald-200/60">
+                  {stat.label}
+                </p>
+                {"isEf" in stat && stat.isEf && (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setEfInfoOpen((v) => !v)}
+                      aria-label="What is Ease Factor?"
+                      className="flex items-center justify-center rounded-full text-emerald-900/40 transition-colors hover:text-emerald-700 dark:text-emerald-200/40 dark:hover:text-emerald-300"
+                    >
+                      <Info className="h-3 w-3" />
+                    </button>
+                    {efInfoOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setEfInfoOpen(false)}
+                        />
+                        <div className="absolute bottom-full left-0 z-50 mb-3 w-56 rounded-2xl border border-emerald-900/10 bg-white p-3 shadow-[0_8px_32px_-8px_rgba(6,78,59,0.25)] dark:border-emerald-100/10 dark:bg-emerald-900 sm:left-1/2 sm:-translate-x-1/2">
+                          <p className="text-[11px] font-semibold text-emerald-950 dark:text-emerald-50">
+                            {t("page.efInfoTitle", locale)}
+                          </p>
+                          <p className="mt-1 text-[11px] leading-relaxed text-emerald-900/65 dark:text-emerald-100/65">
+                            {t("page.efInfoBody", locale)}
+                          </p>
+                          <div className="absolute -bottom-1.5 left-2 h-3 w-3 rotate-45 border-b border-r border-emerald-900/10 bg-white dark:border-emerald-100/10 dark:bg-emerald-900 sm:left-1/2 sm:-translate-x-1/2" />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
               <p className="mt-2 text-2xl font-bold text-emerald-950 dark:text-emerald-100">
                 {stat.value}
-                {stat.suffix && (
+                {"suffix" in stat && stat.suffix && (
                   <span className="text-sm font-normal text-emerald-900/50">
                     {stat.suffix}
                   </span>
