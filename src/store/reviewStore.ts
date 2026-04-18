@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { murajaahDB, type AyahProgressRow } from "@/lib/offline/db";
 import { toUserError } from "@/lib/errorHandling";
 import { isGuestUserId, isSupportedUserId } from "@/lib/guest";
-import { enqueueAyahProgressSync, processSyncQueue } from "@/lib/offline/sync";
+import { enqueueAyahProgressSync, hydrateFromServer, processSyncQueue } from "@/lib/offline/sync";
 import { calculateSM2, type SM2Rating } from "@/lib/srs";
 
 interface RateAyahInput {
@@ -285,6 +285,16 @@ export const useReviewStore = create<ReviewState>((set) => ({
 
     try {
       const nowIso = new Date().toISOString();
+
+      if (!isGuestUserId(userId)) {
+        const existingCount = await murajaahDB.ayahProgress
+          .filter((row) => row.userId === userId)
+          .count();
+
+        if (existingCount === 0) {
+          await hydrateFromServer(userId);
+        }
+      }
 
       const due = await murajaahDB.ayahProgress
         .where("nextReviewDate")

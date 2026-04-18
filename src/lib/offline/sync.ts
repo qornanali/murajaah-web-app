@@ -72,6 +72,26 @@ async function pushAyahProgress(record: AyahProgressRow) {
   }
 }
 
+export async function hydrateFromServer(userId: string): Promise<void> {
+  if (isGuestUserId(userId)) {
+    return;
+  }
+
+  const response = await fetch("/api/user/ayah-progress");
+
+  if (!response.ok) {
+    throw new Error(`Hydration failed: HTTP ${response.status}`);
+  }
+
+  const rows: AyahProgressRow[] = await response.json();
+
+  if (rows.length === 0) {
+    return;
+  }
+
+  await murajaahDB.ayahProgress.bulkPut(rows);
+}
+
 export async function enqueueAyahProgressSync(record: AyahProgressRow) {
   if (isGuestUserId(record.userId)) {
     return;
@@ -137,6 +157,10 @@ export async function processSyncQueue() {
 
     for (const item of failedItems) {
       if (!item.localId) {
+        continue;
+      }
+
+      if (item.retryCount >= 3) {
         continue;
       }
 

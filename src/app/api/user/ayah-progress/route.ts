@@ -111,6 +111,52 @@ function validateAyahProgressPayload(payload: unknown): AyahProgressPayload {
   };
 }
 
+export async function GET(request: NextRequest) {
+  try {
+    const appUserId = await getLinkedAppUserId(request);
+    if (!appUserId) {
+      return toUnauthorized();
+    }
+
+    const supabase = getSupabaseAdminClient();
+
+    const { data, error } = await supabase
+      .from("ayah_progress")
+      .select(
+        "id, user_id, surah_number, ayah_number, ease_factor, interval, repetitions, next_review_date, updated_at",
+      )
+      .eq("user_id", appUserId);
+
+    if (error) {
+      console.error("Ayah progress fetch error:", error);
+      return NextResponse.json(
+        { error: "FETCH_FAILED", message: error.message },
+        { status: 500 },
+      );
+    }
+
+    const rows = (data ?? []).map((row) => ({
+      id: row.id,
+      userId: row.user_id,
+      surahNumber: row.surah_number,
+      ayahNumber: row.ayah_number,
+      easeFactor: row.ease_factor,
+      interval: row.interval,
+      repetitions: row.repetitions,
+      nextReviewDate: row.next_review_date,
+      updatedAt: row.updated_at,
+    }));
+
+    return NextResponse.json(rows);
+  } catch (error) {
+    console.error("Ayah progress fetch error:", error);
+    return NextResponse.json(
+      { error: "INTERNAL_SERVER_ERROR" },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const appUserId = await getLinkedAppUserId(request);
@@ -133,6 +179,18 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseAdminClient();
+
+    const { data: existingRow } = await supabase
+      .from("ayah_progress")
+      .select("updated_at")
+      .eq("user_id", appUserId)
+      .eq("surah_number", validated.surahNumber)
+      .eq("ayah_number", validated.ayahNumber)
+      .maybeSingle();
+
+    if (existingRow && existingRow.updated_at >= validated.updatedAt) {
+      return NextResponse.json({ success: true });
+    }
 
     const { error } = await supabase.from("ayah_progress").upsert(
       {
