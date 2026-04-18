@@ -3,13 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import InfoModal, { type InfoTab } from "@/components/ui/InfoModal";
 import MethodologyModal from "@/components/ui/MethodologyModal";
 import OnboardingModal from "@/components/ui/OnboardingModal";
 import { ActiveTracksSection } from "@/components/home/ActiveTracksSection";
 import { DueReviewCard } from "@/components/home/DueReviewCard";
 import { HeaderBar } from "@/components/home/HeaderBar";
-import { StatsSection } from "@/components/home/StatsSection";
 import { SourceSheet } from "@/components/home/SourceSheet";
 import { toUserError } from "@/lib/errorHandling";
 import { getGuestUserId } from "@/lib/guest";
@@ -50,7 +48,7 @@ import { toVerseKey } from "@/lib/quranApi";
 import { getSurahName } from "@/lib/quranMeta";
 import { useAuthStore } from "@/store/authStore";
 import { useLocaleStore } from "@/store/localeStore";
-import { useReviewStore, type SurahMastery } from "@/store/reviewStore";
+import { useReviewStore } from "@/store/reviewStore";
 import { useThemeStore } from "@/store/themeStore";
 import { useUIStore } from "@/store/uiStore";
 
@@ -85,16 +83,8 @@ export default function Home() {
 
   const latestProgress = useReviewStore((state) => state.latestProgress);
   const dueQueue = useReviewStore((state) => state.dueQueue);
-  const sessionRelearnQueue = useReviewStore(
-    (state) => state.sessionRelearnQueue,
-  );
   const isQueueLoading = useReviewStore((state) => state.isQueueLoading);
-  const isSaving = useReviewStore((state) => state.isSaving);
-  const error = useReviewStore((state) => state.error);
   const loadDueQueue = useReviewStore((state) => state.loadDueQueue);
-  const calculateSurahMastery = useReviewStore(
-    (state) => state.calculateSurahMastery,
-  );
 
   const hasSeenOnboardingModal = useUIStore(
     (state) => state.hasSeenOnboardingModal,
@@ -115,17 +105,6 @@ export default function Home() {
   const [reviewedVerseKeys, setReviewedVerseKeys] = useState<Set<string>>(
     new Set(),
   );
-  const [newVerseKeysToday, setNewVerseKeysToday] = useState<Set<string>>(
-    new Set(),
-  );
-  const [currentStreak, setCurrentStreak] = useState(0);
-  const [longestStreak, setLongestStreak] = useState(0);
-  const [isUserApiConnected, setIsUserApiConnected] = useState<boolean | null>(
-    null,
-  );
-  const [averageEaseFactor, setAverageEaseFactor] = useState<number | null>(
-    null,
-  );
   const [packageActionId, setPackageActionId] = useState<string | null>(null);
   const [selectedSurahNumber, setSelectedSurahNumber] = useState(1);
   const [activeSurahTrackNumbers, setActiveSurahTrackNumbers] = useState<
@@ -137,8 +116,6 @@ export default function Home() {
     onConfirm: () => void;
   } | null>(null);
   const [guestUserId, setGuestUserId] = useState<string | null>(null);
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  const [activeInfoTab, setActiveInfoTab] = useState<InfoTab>("source");
   const [isMethodologyModalOpen, setIsMethodologyModalOpen] = useState(false);
   const [isSourceSheetOpen, setIsSourceSheetOpen] = useState(false);
   const [sourceSheetTab, setSourceSheetTab] = useState<"surah" | "packages">(
@@ -148,15 +125,16 @@ export default function Home() {
   const [packageSearch, setPackageSearch] = useState("");
   const [packagePage, setPackagePage] = useState(1);
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
-  const [surahMasteryData, setSurahMasteryData] = useState<
-    Record<string, Record<number, SurahMastery>>
-  >({});
   const [qfSession, setQfSession] = useState<QfSessionStatus>({
     linked: false,
     qfUserId: null,
     appUserId: null,
   });
   const [qfDisplayName, setQfDisplayName] = useState<string | null>(null);
+  const [isUserApiConnected, setIsUserApiConnected] = useState<boolean | null>(
+    null,
+  );
+  const [currentStreak, setCurrentStreak] = useState(0);
 
   const authenticatedUserId = user?.id;
   const persistedUserId = authenticatedUserId ?? qfSession.appUserId;
@@ -202,16 +180,6 @@ export default function Home() {
     return filteredPackages.slice(start, start + PACKAGE_PAGE_SIZE);
   }, [filteredPackages, packagePage]);
 
-  const packageVerseKeysById = useMemo(() => {
-    const map: Record<string, Set<string>> = {};
-
-    packages.forEach((item) => {
-      map[item.id] = getPackageVerseKeys(item);
-    });
-
-    return map;
-  }, [packages]);
-
   const packageProgressById = useMemo(() => {
     const map: Record<
       string,
@@ -224,37 +192,6 @@ export default function Home() {
 
     return map;
   }, [packages, reviewedVerseKeys]);
-
-  const visibleDueQueue = useMemo(() => {
-    if (!selectedPackageId) {
-      return dueQueue;
-    }
-
-    const packageVerseKeys = packageVerseKeysById[selectedPackageId];
-
-    if (!packageVerseKeys || packageVerseKeys.size === 0) {
-      return dueQueue;
-    }
-
-    return dueQueue.filter((item) =>
-      packageVerseKeys.has(toVerseKey(item.surahNumber, item.ayahNumber)),
-    );
-  }, [dueQueue, selectedPackageId, packageVerseKeysById]);
-
-  const activePackagesCount = useMemo(
-    () =>
-      Object.values(packageStatusById).filter((status) => status === "active")
-        .length,
-    [packageStatusById],
-  );
-
-  const completedPackagesCount = useMemo(
-    () =>
-      Object.values(packageStatusById).filter(
-        (status) => status === "completed",
-      ).length,
-    [packageStatusById],
-  );
 
   const activeTracks = useMemo(() => {
     const packageTracks = packages
@@ -519,18 +456,9 @@ export default function Home() {
     const loadProgressState = async () => {
       if (!activeUserId) {
         setReviewedVerseKeys(new Set());
-        setNewVerseKeysToday(new Set());
         setCurrentStreak(0);
-        setLongestStreak(0);
         return;
       }
-
-      const now = new Date();
-      const startOfDay = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-      ).toISOString();
 
       const allRows = await murajaahDB.ayahProgress
         .toCollection()
@@ -538,35 +466,17 @@ export default function Home() {
         .toArray();
 
       const reviewed = new Set<string>();
-      const newToday = new Set<string>();
       const updatedAtDates: string[] = [];
 
       allRows.forEach((row) => {
-        const verseKey = toVerseKey(row.surahNumber, row.ayahNumber);
-        reviewed.add(verseKey);
+        reviewed.add(toVerseKey(row.surahNumber, row.ayahNumber));
         updatedAtDates.push(row.updatedAt);
-
-        if (row.updatedAt >= startOfDay && row.repetitions <= 1) {
-          newToday.add(verseKey);
-        }
       });
 
       const streak = calculateStreakFromIsoDates(updatedAtDates);
 
       setReviewedVerseKeys(reviewed);
-      setNewVerseKeysToday(newToday);
       setCurrentStreak(streak.current);
-      setLongestStreak(streak.longest);
-      setAverageEaseFactor(
-        allRows.length > 0
-          ? Number(
-              (
-                allRows.reduce((sum, row) => sum + row.easeFactor, 0) /
-                allRows.length
-              ).toFixed(2),
-            )
-          : null,
-      );
     };
 
     void loadProgressState();
@@ -582,50 +492,6 @@ export default function Home() {
       };
     }
   }, [activeUserId, loadDueQueue]);
-
-  useEffect(() => {
-    if (!activeUserId || packages.length === 0) {
-      return;
-    }
-
-    const calculateAllMastery = async () => {
-      const masteryByPackageId: Record<
-        string,
-        Record<number, SurahMastery>
-      > = {};
-
-      for (const pkg of packages) {
-        const verseKeys = getPackageVerseKeys(pkg);
-        const surahSet = new Set<number>();
-
-        verseKeys.forEach((key) => {
-          const [surah] = key.split(":").map(Number);
-          surahSet.add(surah);
-        });
-
-        masteryByPackageId[pkg.id] = {};
-
-        for (const surahNumber of surahSet) {
-          const mastery = await calculateSurahMastery(
-            activeUserId,
-            surahNumber,
-            300,
-          );
-          masteryByPackageId[pkg.id][surahNumber] = mastery;
-        }
-      }
-
-      setSurahMasteryData(masteryByPackageId);
-    };
-
-    void calculateAllMastery();
-  }, [activeUserId, packages, calculateSurahMastery]);
-
-  const handleStartDueReview = (verseKey: string) => {
-    const [surahStr] = verseKey.split(":");
-    const surahNumber = Number.parseInt(surahStr ?? "1", 10);
-    router.push(`/practice/surah/${surahNumber}`);
-  };
 
   const handleSelectPackage = (packageId: string) => {
     setSelectedPackageId(packageId);
@@ -903,7 +769,7 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-6">
+    <main className="flex min-h-screen flex-col items-center justify-center p-6 animate-fade-in">
       <HeaderBar
         locale={locale}
         theme={theme}
@@ -912,53 +778,40 @@ export default function Home() {
           user?.email ?? qfDisplayName ?? qfSession.qfUserId ?? undefined
         }
         dueCount={dueQueue.length}
+        currentStreak={currentStreak}
         onSetLocale={setLocale}
         onSetTheme={setTheme}
-        onOpenInfoModal={() => setIsInfoModalOpen(true)}
         onOpenMethodologyModal={() => setIsMethodologyModalOpen(true)}
         onSignOut={handleSignOut}
         isQfLinked={qfSession?.linked ?? false}
+        isUserApiConnected={isUserApiConnected}
       />
 
       <div className="w-full max-w-4xl space-y-5">
-        <DueReviewCard
-          locale={locale}
-          dueCount={dueQueue.length}
-          isLoading={isQueueLoading}
-        />
+        <div className="animate-slide-up">
+          <DueReviewCard
+            locale={locale}
+            dueCount={dueQueue.length}
+            isLoading={isQueueLoading}
+          />
+        </div>
 
-        <ActiveTracksSection
-          locale={locale}
-          tracks={activeTracks}
-          onAddTracks={() => openSourceSheet("packages")}
-          onPlayTrack={handlePlayTrack}
-          onResetTrack={handleResetTrack}
-        />
+        <div className="animate-slide-up-delay-1">
+          <ActiveTracksSection
+            locale={locale}
+            tracks={activeTracks}
+            onAddTracks={() => router.push("/library")}
+            onPlayTrack={handlePlayTrack}
+            onResetTrack={handleResetTrack}
+          />
+        </div>
 
-        <StatsSection
-          locale={locale}
-          reviewedVerseKeys={reviewedVerseKeys}
-          newVerseKeysToday={newVerseKeysToday}
-          isUserApiConnected={isUserApiConnected}
-          currentStreak={currentStreak}
-          longestStreak={longestStreak}
-          visibleDueQueue={visibleDueQueue}
-          activePackagesCount={activePackagesCount}
-          averageEaseFactor={averageEaseFactor}
-          isQueueLoading={isQueueLoading}
-          selectedVerseKey=""
-          sessionRelearnQueueLength={sessionRelearnQueue.length}
-          selectedPackageId={selectedPackageId}
-          dailyTargetNotice={null}
-          surahMasteryData={surahMasteryData}
-          latestProgress={latestProgress}
-          isSaving={isSaving}
-          error={error}
-          onStartDueReview={handleStartDueReview}
-          onLoadFallbackAyah={() => {
-            void loadDueQueue(activeUserId ?? "");
-          }}
-        />
+        <div className="animate-slide-up-delay-2 rounded-[28px] border border-amber-700/20 bg-amber-50/70 px-5 py-4 text-sm text-amber-900 shadow-[0_8px_24px_-12px_rgba(180,83,9,0.18)] backdrop-blur-sm dark:border-amber-300/20 dark:bg-amber-950/30 dark:text-amber-200">
+          <p className="font-semibold">{t("page.disclaimer", locale)}</p>
+          <p className="mt-1 text-amber-800/80 dark:text-amber-200/70">
+            {t("page.checkMushaf", locale)}
+          </p>
+        </div>
       </div>
 
       <OnboardingModal
@@ -974,22 +827,6 @@ export default function Home() {
         isOpen={isMethodologyModalOpen}
         locale={locale}
         onClose={() => setIsMethodologyModalOpen(false)}
-      />
-
-      <InfoModal
-        activeTab={activeInfoTab}
-        isOpen={isInfoModalOpen}
-        locale={locale}
-        onClose={() => setIsInfoModalOpen(false)}
-        onSelectTab={setActiveInfoTab}
-        stats={{
-          activePackagesCount,
-          averageEaseFactor,
-          completedPackagesCount,
-          dueNowCount: visibleDueQueue.length,
-          newTodayCount: newVerseKeysToday.size,
-          totalReviewedVerses: reviewedVerseKeys.size,
-        }}
       />
 
       <ConfirmDialog
