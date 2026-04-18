@@ -28,7 +28,12 @@ export default function BookmarksPage() {
   const router = useRouter();
   const locale = useLocaleStore((state) => state.locale);
   const user = useAuthStore((state) => state.user);
-  const [qfSession, setQfSession] = useState<QfSessionStatus | null>(null);
+  const [qfSession, setQfSession] = useState<QfSessionStatus>({
+    linked: false,
+    qfUserId: null,
+    appUserId: null,
+  });
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,52 +46,54 @@ export default function BookmarksPage() {
         const status = await fetchQfSessionStatus();
         setQfSession(status);
       } catch {
-        setQfSession(null);
+        setQfSession({ linked: false, qfUserId: null, appUserId: null });
+      } finally {
+        setIsCheckingAuth(false);
       }
     };
     void loadSession();
   }, []);
 
+  const fetchBookmarks = useCallback(async () => {
+    if (!user?.id && !qfSession.linked) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/user/bookmarks", {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      });
+
+      if (response.ok) {
+        const data = (await response.json()) as {
+          bookmarks?: BookmarkItem[];
+        };
+        setBookmarks(data.bookmarks ?? []);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(
+          (errorData as { message?: string }).message ??
+            "Failed to load bookmarks",
+        );
+      }
+    } catch {
+      setError("Failed to load bookmarks");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id, qfSession.linked]);
+
   useEffect(() => {
-    const fetchBookmarks = async () => {
-      if (!user?.id && !qfSession?.linked) {
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const response = await fetch("/api/user/bookmarks", {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-          },
-          cache: "no-store",
-        });
-
-        if (response.ok) {
-          const data = (await response.json()) as {
-            bookmarks?: BookmarkItem[];
-          };
-          setBookmarks(data.bookmarks ?? []);
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          setError(
-            (errorData as { message?: string }).message ??
-              "Failed to load bookmarks",
-          );
-        }
-      } catch {
-        setError("Failed to load bookmarks");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     void fetchBookmarks();
-  }, [user?.id, qfSession?.linked]);
+  }, [fetchBookmarks]);
 
   const handleDeleteBookmark = useCallback(async (verseKey: string) => {
     setDeletingVerseKey(verseKey);
@@ -94,6 +101,7 @@ export default function BookmarksPage() {
 
     if (result.ok) {
       setBookmarks((prev) => prev.filter((b) => b.verse_key !== verseKey));
+      setError(null);
     } else {
       setError(result.message ?? "Failed to delete bookmark");
     }
@@ -111,7 +119,15 @@ export default function BookmarksPage() {
     );
   });
 
-  if (!user?.id && !qfSession?.linked) {
+  if (isCheckingAuth) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4 bg-[#FDFCF8] dark:bg-emerald-950">
+        <Loader className="h-6 w-6 animate-spin text-emerald-900/40 dark:text-emerald-100/40" />
+      </div>
+    );
+  }
+
+  if (!user?.id && !qfSession.linked) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4 bg-[#FDFCF8] dark:bg-emerald-950">
         <Bookmark className="h-8 w-8 text-emerald-900/20 dark:text-emerald-100/20" />
@@ -173,8 +189,15 @@ export default function BookmarksPage() {
         )}
 
         {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300">
-            {error}
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/40 dark:bg-red-950/40">
+            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+            <button
+              type="button"
+              onClick={() => void fetchBookmarks()}
+              className="mt-2 text-xs font-medium text-red-800 underline hover:no-underline dark:text-red-200"
+            >
+              {t("common.retry", locale)}
+            </button>
           </div>
         )}
 

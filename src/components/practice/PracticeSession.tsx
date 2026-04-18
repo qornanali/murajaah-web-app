@@ -213,6 +213,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [isBookmarkSaving, setIsBookmarkSaving] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [bookmarkError, setBookmarkError] = useState<string | null>(null);
   const [ratingCounts, setRatingCounts] = useState<Record<SM2Rating, number>>({
     1: 0,
     2: 0,
@@ -431,6 +432,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
     setAyahLoading(true);
     setAyahError(null);
     setIsBookmarked(false);
+    setBookmarkError(null);
     try {
       const data = await fetchAyahByKey(verseKey);
       setAyah(data);
@@ -690,6 +692,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
     }
 
     setIsBookmarkSaving(true);
+    setBookmarkError(null);
 
     const verseKey = toVerseKey(ayah.surahNumber, ayah.ayahNumber);
 
@@ -697,11 +700,17 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
       const result = await deleteBookmarkForVerse(verseKey);
       if (result.ok) {
         setIsBookmarked(false);
+      } else {
+        setBookmarkError(t("practice.bookmarkRemovalFailed", locale));
+        setTimeout(() => setBookmarkError(null), 3000);
       }
     } else {
       const result = await createBookmarkForVerse(verseKey);
       if (result.ok) {
         setIsBookmarked(true);
+      } else {
+        setBookmarkError(t("practice.bookmarkFailed", locale));
+        setTimeout(() => setBookmarkError(null), 3000);
       }
     }
 
@@ -789,6 +798,12 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
           </button>
         )}
       </header>
+
+      {bookmarkError && (
+        <div className="mx-4 mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300 sm:mx-6">
+          {bookmarkError}
+        </div>
+      )}
 
       <div className="flex flex-1 flex-col overflow-y-auto">
         {isComplete ? (
