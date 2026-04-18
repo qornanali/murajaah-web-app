@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle, BookOpen, ChevronDown, Undo2 } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle,
+  BookOpen,
+  ChevronDown,
+  Undo2,
+  Bookmark,
+} from "lucide-react";
 
 import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
@@ -17,6 +24,11 @@ import {
   estimateRevealDurationSeconds,
   splitAyahByWaqf,
 } from "@/lib/quranUtils";
+import {
+  createBookmarkForVerse,
+  deleteBookmarkForVerse,
+  checkBookmarkStatus,
+} from "@/lib/qf/userBrowser";
 import { PACKAGE_CATALOG } from "@/lib/packages/catalog";
 import { fetchPublishedMemorizationPackages } from "@/lib/packages/api";
 import { getPackageVerseKeys } from "@/lib/packages/progress";
@@ -199,7 +211,14 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
     useState<PostRatingReveal | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
-  const [ratingCounts, setRatingCounts] = useState<Record<SM2Rating, number>>({ 1: 0, 2: 0, 3: 0, 4: 0 });
+  const [isBookmarkSaving, setIsBookmarkSaving] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [ratingCounts, setRatingCounts] = useState<Record<SM2Rating, number>>({
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+  });
   const [undoSnapshot, setUndoSnapshot] = useState<UndoSnapshot | null>(null);
   const [undoSecondsLeft, setUndoSecondsLeft] = useState(5);
 
@@ -401,7 +420,8 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
       if (feedbackTimerRef.current !== null)
         window.clearTimeout(feedbackTimerRef.current);
       if (undoTimerRef.current !== null) clearTimeout(undoTimerRef.current);
-      if (undoIntervalRef.current !== null) clearInterval(undoIntervalRef.current);
+      if (undoIntervalRef.current !== null)
+        clearInterval(undoIntervalRef.current);
       if (completionTimerRef.current !== null)
         clearTimeout(completionTimerRef.current);
     };
@@ -410,11 +430,23 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
   const loadAyahByKey = async (verseKey: string) => {
     setAyahLoading(true);
     setAyahError(null);
+    setIsBookmarked(false);
     try {
       const data = await fetchAyahByKey(verseKey);
       setAyah(data);
       if (activeUserId) {
         void loadAyahProgress(activeUserId, data.surahNumber, data.ayahNumber);
+      }
+
+      if (user?.id || qfSession?.linked) {
+        const bookmarkStatus = await checkBookmarkStatus(verseKey);
+        if (
+          qfSession?.linked &&
+          bookmarkStatus.ok &&
+          bookmarkStatus.bookmarks
+        ) {
+          setIsBookmarked(bookmarkStatus.bookmarks[verseKey] ?? false);
+        }
       }
     } catch (err) {
       setAyahError(toUserError("QURAN-AYAH-001", err));
@@ -449,7 +481,8 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
       setRatingCounts((prev) => ({ ...prev, [rating]: prev[rating] + 1 }));
 
       if (undoTimerRef.current !== null) clearTimeout(undoTimerRef.current);
-      if (undoIntervalRef.current !== null) clearInterval(undoIntervalRef.current);
+      if (undoIntervalRef.current !== null)
+        clearInterval(undoIntervalRef.current);
       setUndoSecondsLeft(5);
       setUndoSnapshot({
         rating,
@@ -647,6 +680,34 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
     );
   };
 
+  const handleBookmarkCurrentAyah = async () => {
+    if (!ayah || isBookmarkSaving) {
+      return;
+    }
+
+    if (!qfSession?.linked) {
+      return;
+    }
+
+    setIsBookmarkSaving(true);
+
+    const verseKey = toVerseKey(ayah.surahNumber, ayah.ayahNumber);
+
+    if (isBookmarked) {
+      const result = await deleteBookmarkForVerse(verseKey);
+      if (result.ok) {
+        setIsBookmarked(false);
+      }
+    } else {
+      const result = await createBookmarkForVerse(verseKey);
+      if (result.ok) {
+        setIsBookmarked(true);
+      }
+    }
+
+    setIsBookmarkSaving(false);
+  };
+
   const isQueueEmpty =
     packagesReady && sessionQueue.length === 0 && !ayahLoading;
   const progressLabel =
@@ -706,6 +767,27 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
             {progressLabel}
           </div>
         ) : null}
+        {qfSession?.linked && ayah && (
+          <button
+            type="button"
+            onClick={() => void handleBookmarkCurrentAyah()}
+            disabled={isBookmarkSaving}
+            aria-label={
+              isBookmarked
+                ? t("practice.bookmarkRemove", locale)
+                : t("practice.bookmark", locale)
+            }
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border transition-all duration-200 active:scale-95 disabled:opacity-60 ${
+              isBookmarked
+                ? "border-amber-900/20 bg-amber-100 text-amber-800 hover:bg-amber-200 dark:border-amber-100/20 dark:bg-amber-900/40 dark:text-amber-200"
+                : "border-emerald-900/15 bg-emerald-900/5 text-emerald-900 hover:bg-emerald-900/10 dark:border-emerald-100/15 dark:bg-emerald-100/5 dark:text-emerald-100"
+            }`}
+          >
+            <Bookmark
+              className={`h-4 w-4 ${isBookmarked ? "fill-current" : ""}`}
+            />
+          </button>
+        )}
       </header>
 
       <div className="flex flex-1 flex-col overflow-y-auto">
@@ -1008,10 +1090,26 @@ function SessionSummary({
     value: SM2Rating;
     colorClass: string;
   }> = [
-    { labelKey: "rating.again", value: 1, colorClass: "text-rose-700 dark:text-rose-400" },
-    { labelKey: "rating.hard", value: 2, colorClass: "text-amber-700 dark:text-amber-400" },
-    { labelKey: "rating.good", value: 3, colorClass: "text-emerald-700 dark:text-emerald-400" },
-    { labelKey: "rating.easy", value: 4, colorClass: "text-teal-700 dark:text-teal-400" },
+    {
+      labelKey: "rating.again",
+      value: 1,
+      colorClass: "text-rose-700 dark:text-rose-400",
+    },
+    {
+      labelKey: "rating.hard",
+      value: 2,
+      colorClass: "text-amber-700 dark:text-amber-400",
+    },
+    {
+      labelKey: "rating.good",
+      value: 3,
+      colorClass: "text-emerald-700 dark:text-emerald-400",
+    },
+    {
+      labelKey: "rating.easy",
+      value: 4,
+      colorClass: "text-teal-700 dark:text-teal-400",
+    },
   ];
 
   return (
@@ -1031,7 +1129,10 @@ function SessionSummary({
         {summaryRows
           .filter((row) => ratingCounts[row.value] > 0)
           .map((row) => (
-            <div key={row.value} className="flex items-center justify-between text-sm">
+            <div
+              key={row.value}
+              className="flex items-center justify-between text-sm"
+            >
               <span className={`font-semibold ${row.colorClass}`}>
                 {t(row.labelKey, locale)}
               </span>

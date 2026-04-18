@@ -79,7 +79,6 @@ export async function createBookmarkForVerse(
       cache: "no-store",
       body: JSON.stringify({
         verse_key: verseKey,
-        verseKey,
       }),
     });
 
@@ -183,6 +182,63 @@ export async function checkBookmarkStatus(
     return {
       ok: false,
       message: "Failed to check bookmarks",
+    };
+  }
+}
+
+export async function fetchUserBookmarks(first = 100): Promise<{
+  ok: boolean;
+  bookmarks?: Array<{
+    id: string;
+    verse_key: string;
+    created_at: string;
+    resource?: { text?: string };
+  }>;
+  pagination?: { total: number; limit: number; offset: number };
+  message?: string;
+}> {
+  try {
+    const params = new URLSearchParams();
+    params.set("first", Math.min(first, 20).toString());
+
+    const response = await fetch(`/api/user/bookmarks?${params.toString()}`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as {
+        bookmarks?: Array<{
+          id: string;
+          verse_key: string;
+          created_at: string;
+          resource?: { text?: string };
+        }>;
+        pagination?: { total: number; limit: number; offset: number };
+      };
+
+      return {
+        ok: true,
+        bookmarks: payload.bookmarks ?? [],
+        pagination: payload.pagination,
+      };
+    }
+
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string;
+    } | null;
+
+    return {
+      ok: false,
+      message: payload?.message ?? "Failed to fetch bookmarks",
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "Failed to fetch bookmarks",
     };
   }
 }

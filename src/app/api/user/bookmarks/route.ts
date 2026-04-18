@@ -17,26 +17,17 @@ import {
 import { QF_USER_BOOKMARKS_PATH } from "@/lib/config";
 
 const BOOKMARKS_PATH = QF_USER_BOOKMARKS_PATH;
+const DEFAULT_MUSHAF_ID = 1;
 
-async function passthroughResponse(response: Response): Promise<NextResponse> {
-  if (!response.ok) {
-    const text = await response.text();
-    return new NextResponse(text, {
-      status: response.status,
-      headers: {
-        "Content-Type":
-          response.headers.get("Content-Type") ?? "application/json",
-      },
-    });
-  }
-
-  const payload = await response.json();
-  return NextResponse.json(payload, {
-    status: 200,
-    headers: {
-      "Cache-Control": "no-store",
-    },
-  });
+function parseVerseKey(
+  verseKey: string,
+): { surah: number; ayah: number } | null {
+  const parts = verseKey.split(":");
+  if (parts.length !== 2) return null;
+  const surah = Number.parseInt(parts[0], 10);
+  const ayah = Number.parseInt(parts[1], 10);
+  if (!Number.isInteger(surah) || !Number.isInteger(ayah)) return null;
+  return { surah, ayah };
 }
 
 function handleProxyError(error: unknown): NextResponse {
@@ -63,18 +54,55 @@ function handleProxyError(error: unknown): NextResponse {
 }
 
 export async function GET(request: NextRequest) {
-  const search = request.nextUrl.search;
   const qfUserId = request.cookies.get(QF_OAUTH_COOKIES.userId)?.value ?? null;
+  const params = new URLSearchParams(request.nextUrl.search);
+  if (!params.has("mushafId")) {
+    params.set("mushafId", String(DEFAULT_MUSHAF_ID));
+  }
+  if (!params.has("type")) {
+    params.set("type", "ayah");
+  }
+  if (!params.has("first") && !params.has("last")) {
+    params.set("first", "20");
+  } else if (params.has("first")) {
+    params.set("first", String(Math.min(Number(params.get("first")), 20)));
+  }
 
   try {
     const response = await qfUserApiRequestForLinkedUserAuth(
       qfUserId,
-      `${BOOKMARKS_PATH}${search}`,
+      `${BOOKMARKS_PATH}?${params.toString()}`,
+      { method: "GET" },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      return new NextResponse(text, {
+        status: response.status,
+        headers: {
+          "Content-Type":
+            response.headers.get("Content-Type") ?? "application/json",
+        },
+      });
+    }
+    const payload = (await response.json()) as {
+      data?: Array<{
+        id: string;
+        key: number;
+        verseNumber: number;
+        createdAt?: string;
+      }>;
+    };
+    const bookmarks = (payload.data ?? []).map((b) => ({
+      verse_key: `${b.key}:${b.verseNumber}`,
+      id: b.id,
+      created_at: b.createdAt,
+    }));
+    return NextResponse.json(
+      { bookmarks },
       {
-        method: "GET",
+        headers: { "Cache-Control": "no-store" },
       },
     );
-    return passthroughResponse(response);
   } catch (error) {
     return handleProxyError(error);
   }
@@ -93,16 +121,24 @@ export async function POST(request: NextRequest) {
   }
 
   let body: unknown;
-
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ message: "Invalid JSON body" }, { status: 400 });
   }
 
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
+  const verseKey = (body as Record<string, unknown>)?.verse_key;
+  if (typeof verseKey !== "string" || !verseKey) {
     return NextResponse.json(
-      { message: "Bookmark payload must be a JSON object" },
+      { message: "verse_key is required" },
+      { status: 400 },
+    );
+  }
+
+  const parsed = parseVerseKey(verseKey);
+  if (!parsed) {
+    return NextResponse.json(
+      { message: "verse_key must be in format surah:ayah (e.g. 1:1)" },
       { status: 400 },
     );
   }
@@ -113,14 +149,31 @@ export async function POST(request: NextRequest) {
       BOOKMARKS_PATH,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: parsed.surah,
+          type: "ayah",
+          verseNumber: parsed.ayah,
+          mushaf: DEFAULT_MUSHAF_ID,
+        }),
       },
     );
 
-    return passthroughResponse(response);
+    if (!response.ok) {
+      const text = await response.text();
+      return new NextResponse(text, {
+        status: response.status,
+        headers: {
+          "Content-Type":
+            response.headers.get("Content-Type") ?? "application/json",
+        },
+      });
+    }
+    const payload = await response.json();
+    return NextResponse.json(payload, {
+      status: 200,
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     return handleProxyError(error);
   }
@@ -139,16 +192,12 @@ export async function DELETE(request: NextRequest) {
   }
 
   let verseKey: string | null = null;
-
   try {
     const body = await request.json();
-    if (typeof body === "object" && body !== null) {
-      const raw = (body as Record<string, unknown>).verse_key;
-      verseKey = typeof raw === "string" ? raw : null;
-    }
+    const raw = (body as Record<string, unknown>)?.verse_key;
+    verseKey = typeof raw === "string" ? raw : null;
   } catch {
-    const searchParams = request.nextUrl.searchParams;
-    verseKey = searchParams.get("verse_key") ?? null;
+    verseKey = request.nextUrl.searchParams.get("verse_key") ?? null;
   }
 
   if (!verseKey) {
@@ -158,22 +207,59 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
+  const parsed = parseVerseKey(verseKey);
+  if (!parsed) {
+    return NextResponse.json(
+      { message: "verse_key must be in format surah:ayah (e.g. 1:1)" },
+      { status: 400 },
+    );
+  }
+
   try {
-    const response = await qfUserApiRequestForLinkedUserAuth(
+    const listResponse = await qfUserApiRequestForLinkedUserAuth(
       qfUserId,
-      `${BOOKMARKS_PATH}/${encodeURIComponent(verseKey)}`,
-      {
-        method: "DELETE",
-      },
+      `${BOOKMARKS_PATH}?mushafId=${DEFAULT_MUSHAF_ID}&type=ayah&first=20`,
+      { method: "GET" },
     );
 
-    if (!response.ok) {
-      const text = await response.text();
+    if (!listResponse.ok) {
+      const text = await listResponse.text();
       return new NextResponse(text, {
-        status: response.status,
+        status: listResponse.status,
         headers: {
           "Content-Type":
-            response.headers.get("Content-Type") ?? "application/json",
+            listResponse.headers.get("Content-Type") ?? "application/json",
+        },
+      });
+    }
+
+    const listData = (await listResponse.json()) as {
+      data?: Array<{ id: string; key: number; verseNumber: number }>;
+    };
+    const bookmark = (listData.data ?? []).find(
+      (b) => b.key === parsed.surah && b.verseNumber === parsed.ayah,
+    );
+
+    if (!bookmark) {
+      return NextResponse.json(
+        { message: "Bookmark not found" },
+        { status: 404 },
+      );
+    }
+
+    const deleteResponse = await qfUserApiRequestForLinkedUserAuth(
+      qfUserId,
+      `${BOOKMARKS_PATH}/${encodeURIComponent(bookmark.id)}`,
+      { method: "DELETE" },
+    );
+
+    if (!deleteResponse.ok) {
+      const text = await deleteResponse.text();
+      return new NextResponse(text, {
+        status: deleteResponse.status,
+        headers: {
+          "Content-Type":
+            deleteResponse.headers.get("Content-Type") ?? "application/json",
         },
       });
     }

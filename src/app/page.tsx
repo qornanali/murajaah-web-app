@@ -917,6 +917,7 @@ export default function Home() {
         onOpenInfoModal={() => setIsInfoModalOpen(true)}
         onOpenMethodologyModal={() => setIsMethodologyModalOpen(true)}
         onSignOut={handleSignOut}
+        isQfLinked={qfSession?.linked ?? false}
       />
 
       <div className="w-full max-w-4xl space-y-5">

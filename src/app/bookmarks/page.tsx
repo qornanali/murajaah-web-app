@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Trash2, Loader } from "lucide-react";
+import { ArrowLeft, Trash2, Loader, Bookmark } from "lucide-react";
 
 import { t } from "@/lib/i18n";
 import { useLocaleStore } from "@/store/localeStore";
@@ -12,6 +12,7 @@ import {
   type QfSessionStatus,
 } from "@/lib/qf/sessionBrowser";
 import { deleteBookmarkForVerse } from "@/lib/qf/userBrowser";
+import { getSurahName } from "@/lib/quranMeta";
 
 interface BookmarkItem {
   verse_key: string;
@@ -112,67 +113,75 @@ export default function BookmarksPage() {
 
   if (!user?.id && !qfSession?.linked) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center p-4">
-        <div className="text-center">
-          <p className="mb-4 text-lg text-gray-700 dark:text-gray-300">
-            {t("bookmarks.signInRequired", locale)}
-          </p>
-          <button
-            onClick={() => router.push("/login")}
-            className="px-6 py-2 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800"
-          >
-            {t("auth.signIn", locale)}
-          </button>
-        </div>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4 bg-[#FDFCF8] dark:bg-emerald-950">
+        <Bookmark className="h-8 w-8 text-emerald-900/20 dark:text-emerald-100/20" />
+        <p className="text-sm text-emerald-900/60 dark:text-emerald-100/60">
+          {t("bookmarks.signInRequired", locale)}
+        </p>
+        <button
+          type="button"
+          onClick={() => router.push("/login")}
+          className="rounded-xl bg-emerald-900/10 px-5 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-900/15 dark:bg-emerald-100/10 dark:text-emerald-100 dark:hover:bg-emerald-100/15"
+        >
+          {t("auth.signIn", locale)}
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950">
-      <div className="sticky top-0 z-10 border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-slate-950">
-        <div className="mx-auto flex max-w-4xl items-center gap-4 p-4">
+    <div className="min-h-screen bg-[#FDFCF8] dark:bg-emerald-950">
+      <header className="sticky top-0 z-10 border-b border-emerald-900/10 bg-[#FDFCF8]/95 backdrop-blur-sm dark:border-emerald-100/10 dark:bg-emerald-950/95">
+        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3 sm:px-6">
           <button
+            type="button"
             onClick={() => router.back()}
-            className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-emerald-900/15 bg-emerald-900/5 text-emerald-900 transition-all duration-200 hover:bg-emerald-900/10 active:scale-95 dark:border-emerald-100/15 dark:bg-emerald-100/5 dark:text-emerald-100"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4" />
           </button>
-          <h1 className="text-xl font-bold">{t("bookmarks.title", locale)}</h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base font-semibold text-emerald-950 dark:text-emerald-100">
+              {t("bookmarks.title", locale)}
+            </h1>
+            {bookmarks.length > 0 && (
+              <p className="text-xs text-emerald-900/50 dark:text-emerald-100/50">
+                {bookmarks.length} {bookmarks.length === 1 ? "ayah" : "ayahs"}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
+      </header>
 
-      <div className="mx-auto max-w-4xl p-4">
+      <div className="mx-auto max-w-2xl px-4 py-5 sm:px-6">
         {bookmarks.length > 0 && (
-          <div className="mb-6 flex gap-4">
+          <div className="mb-5">
             <input
               type="text"
               placeholder={t("bookmarks.search", locale)}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-600 dark:bg-slate-900 dark:text-white"
+              className="w-full rounded-2xl border border-emerald-900/15 bg-emerald-900/5 px-4 py-2.5 text-sm text-emerald-900 placeholder-emerald-900/40 outline-none focus:border-emerald-900/30 focus:ring-0 dark:border-emerald-100/15 dark:bg-emerald-100/5 dark:text-emerald-100 dark:placeholder-emerald-100/40"
             />
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              {filteredBookmarks.length} / {bookmarks.length}
-            </div>
           </div>
         )}
 
         {isLoading && (
-          <div className="flex justify-center py-12">
-            <Loader className="h-6 w-6 animate-spin text-gray-400" />
+          <div className="flex justify-center py-16">
+            <Loader className="h-5 w-5 animate-spin text-emerald-900/40 dark:text-emerald-100/40" />
           </div>
         )}
 
         {error && (
-          <div className="rounded-lg bg-red-50 p-4 text-red-700 dark:bg-red-950 dark:text-red-200">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300">
             {error}
           </div>
         )}
 
         {!isLoading && !error && filteredBookmarks.length === 0 && (
-          <div className="rounded-lg border border-dashed border-gray-300 p-12 text-center dark:border-gray-700">
-            <p className="text-gray-600 dark:text-gray-400">
+          <div className="flex flex-col items-center gap-3 py-20 text-center">
+            <Bookmark className="h-8 w-8 text-emerald-900/20 dark:text-emerald-100/20" />
+            <p className="text-sm text-emerald-900/50 dark:text-emerald-100/50">
               {searchQuery
                 ? t("bookmarks.noResults", locale)
                 : t("bookmarks.empty", locale)}
@@ -181,38 +190,58 @@ export default function BookmarksPage() {
         )}
 
         <div className="space-y-2">
-          {filteredBookmarks.map((bookmark) => (
-            <div
-              key={bookmark.verse_key}
-              className="group flex items-start gap-4 rounded-lg border border-gray-200 p-4 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold text-gray-900 dark:text-white">
-                  {bookmark.surah_name} {bookmark.surah_number}:
-                  {bookmark.ayah_number}
+          {filteredBookmarks.map((bookmark) => {
+            const [surahStr, ayahStr] = bookmark.verse_key.split(":");
+            const surahNum = Number(surahStr);
+            const ayahNum = Number(ayahStr);
+            const surahName = getSurahName(surahNum);
+
+            return (
+              <div
+                key={bookmark.verse_key}
+                className="group flex items-center gap-3 rounded-2xl border border-emerald-900/10 bg-white px-4 py-3.5 transition-colors hover:border-emerald-900/20 dark:border-emerald-100/10 dark:bg-emerald-900/10 dark:hover:border-emerald-100/20"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                  <Bookmark className="h-4 w-4 fill-current" />
                 </div>
-                <p className="mt-1 line-clamp-2 text-sm text-gray-700 dark:text-gray-300">
-                  {bookmark.verse_text}
-                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(`/practice/ayah/${bookmark.verse_key}`)
+                  }
+                  className="flex-1 min-w-0 text-left"
+                >
+                  <p className="text-sm font-semibold text-emerald-950 dark:text-emerald-100">
+                    {surahName}
+                  </p>
+                  <p className="text-xs text-emerald-900/50 dark:text-emerald-100/50">
+                    {t("quran.surah", locale)} {surahNum} ·{" "}
+                    {t("quran.ayah", locale)} {ayahNum}
+                  </p>
+                </button>
                 {bookmark.created_at && (
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
-                    {new Date(bookmark.created_at).toLocaleDateString(locale)}
+                  <p className="hidden shrink-0 text-xs text-emerald-900/40 dark:text-emerald-100/40 sm:block">
+                    {new Date(bookmark.created_at).toLocaleDateString(
+                      locale === "id" ? "id-ID" : "en-US",
+                      { month: "short", day: "numeric" },
+                    )}
                   </p>
                 )}
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteBookmark(bookmark.verse_key)}
+                  disabled={deletingVerseKey === bookmark.verse_key}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-emerald-900/30 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:text-emerald-100/30 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                >
+                  {deletingVerseKey === bookmark.verse_key ? (
+                    <Loader className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                </button>
               </div>
-              <button
-                onClick={() => void handleDeleteBookmark(bookmark.verse_key)}
-                disabled={deletingVerseKey === bookmark.verse_key}
-                className="flex-shrink-0 rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-400 disabled:opacity-50"
-              >
-                {deletingVerseKey === bookmark.verse_key ? (
-                  <Loader className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Trash2 className="h-5 w-5" />
-                )}
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

@@ -212,6 +212,7 @@
     "practice.dueCard.allCaughtUpSubtitle": "No ayahs due right now. Keep up the dedication, in sha Allah.",
     "practice.dueCard.loading": "Checking due reviews...",
     "bookmarks.title": "My Bookmarks",
+    "bookmarks.signInRequired": "Sign in to view your bookmarks.",
     "bookmarks.empty": "No bookmarks yet. Save verses while practicing.",
     "bookmarks.noResults": "No bookmarks match your search.",
     "bookmarks.search": "Search bookmarks..."
@@ -429,6 +430,7 @@
     "practice.dueCard.allCaughtUpSubtitle": "Tidak ada ayat yang jatuh tempo saat ini. Pertahankan semangat murajaahmu, in sha Allah.",
     "practice.dueCard.loading": "Memeriksa tinjauan...",
     "bookmarks.title": "Bookmark Saya",
+    "bookmarks.signInRequired": "Masuk untuk melihat bookmark Anda.",
     "bookmarks.empty": "Belum ada bookmark. Simpan ayat saat berlatih.",
     "bookmarks.noResults": "Tidak ada bookmark yang cocok dengan pencarian Anda.",
     "bookmarks.search": "Cari bookmark..."

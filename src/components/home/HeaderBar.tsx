@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { Bookmark } from "lucide-react";
 import { t } from "@/lib/i18n";
 import type { AppLocale } from "@/lib/i18n";
 
@@ -14,6 +15,7 @@ interface HeaderBarProps {
   onOpenInfoModal: () => void;
   onOpenMethodologyModal: () => void;
   onSignOut: () => Promise<void>;
+  isQfLinked?: boolean;
 }
 
 export function HeaderBar({
@@ -27,6 +29,7 @@ export function HeaderBar({
   onOpenInfoModal,
   onOpenMethodologyModal,
   onSignOut,
+  isQfLinked,
 }: HeaderBarProps) {
   const router = useRouter();
 
@@ -172,6 +175,17 @@ export function HeaderBar({
               </svg>
             )}
           </button>
+          {isQfLinked && (
+            <button
+              type="button"
+              onClick={() => router.push("/bookmarks")}
+              aria-label="My bookmarks"
+              title="My bookmarks"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-900/15 bg-emerald-900/5 text-emerald-900 transition-colors hover:bg-emerald-900/10 dark:border-emerald-100/15 dark:bg-emerald-100/5 dark:text-emerald-100 dark:hover:bg-emerald-100/10"
+            >
+              <Bookmark className="h-4 w-4" />
+            </button>
+          )}
           <button
             type="button"
             onClick={onOpenMethodologyModal}

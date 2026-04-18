@@ -79,18 +79,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Fetch all user bookmarks from QF, mushafId is required
     const response = await qfUserApiRequestForLinkedUserAuth(
       qfUserId,
-      "/bookmarks/check",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          verse_keys: verseKeys,
-        }),
-      },
+      "/v1/bookmarks?mushafId=1&type=ayah&first=20",
+      { method: "GET" },
     );
 
     if (!response.ok) {
@@ -104,13 +97,28 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const payload = await response.json();
-    return NextResponse.json(payload, {
-      status: 200,
-      headers: {
-        "Cache-Control": "no-store",
-      },
+    const payload = (await response.json()) as {
+      data?: Array<{ key: number; verseNumber: number }>;
+    };
+
+    // Build a set of "surah:ayah" strings from the response
+    const bookmarkedSet = new Set(
+      (payload.data ?? []).map((b) => `${b.key}:${b.verseNumber}`),
+    );
+    const bookmarks: Record<string, boolean> = {};
+    verseKeys.forEach((key) => {
+      bookmarks[key] = bookmarkedSet.has(key);
     });
+
+    return NextResponse.json(
+      { bookmarks },
+      {
+        status: 200,
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      },
+    );
   } catch (error) {
     return handleProxyError(error);
   }
