@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle, BookOpen, ChevronDown } from "lucide-react";
+import { ArrowLeft, CheckCircle, BookOpen, ChevronDown, Undo2 } from "lucide-react";
 
 import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
@@ -201,12 +201,14 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [ratingCounts, setRatingCounts] = useState<Record<SM2Rating, number>>({ 1: 0, 2: 0, 3: 0, 4: 0 });
   const [undoSnapshot, setUndoSnapshot] = useState<UndoSnapshot | null>(null);
+  const [undoSecondsLeft, setUndoSecondsLeft] = useState(5);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const feedbackTimerRef = useRef<number | null>(null);
   const postRatingRevealFinalizingRef = useRef(false);
   const sessionInitializedRef = useRef(false);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeUserId = user?.id ?? qfSession?.appUserId ?? guestUserId;
@@ -399,6 +401,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
       if (feedbackTimerRef.current !== null)
         window.clearTimeout(feedbackTimerRef.current);
       if (undoTimerRef.current !== null) clearTimeout(undoTimerRef.current);
+      if (undoIntervalRef.current !== null) clearInterval(undoIntervalRef.current);
       if (completionTimerRef.current !== null)
         clearTimeout(completionTimerRef.current);
     };
@@ -446,6 +449,8 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
       setRatingCounts((prev) => ({ ...prev, [rating]: prev[rating] + 1 }));
 
       if (undoTimerRef.current !== null) clearTimeout(undoTimerRef.current);
+      if (undoIntervalRef.current !== null) clearInterval(undoIntervalRef.current);
+      setUndoSecondsLeft(5);
       setUndoSnapshot({
         rating,
         ratedAyah,
@@ -455,6 +460,18 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
         prevRelearnQueue,
         wasComplete: false,
       });
+      undoIntervalRef.current = setInterval(() => {
+        setUndoSecondsLeft((s) => {
+          if (s <= 1) {
+            if (undoIntervalRef.current !== null) {
+              clearInterval(undoIntervalRef.current);
+              undoIntervalRef.current = null;
+            }
+            return 0;
+          }
+          return s - 1;
+        });
+      }, 1000);
       undoTimerRef.current = setTimeout(() => {
         setUndoSnapshot(null);
         undoTimerRef.current = null;
@@ -512,6 +529,10 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
     if (undoTimerRef.current !== null) {
       clearTimeout(undoTimerRef.current);
       undoTimerRef.current = null;
+    }
+    if (undoIntervalRef.current !== null) {
+      clearInterval(undoIntervalRef.current);
+      undoIntervalRef.current = null;
     }
     setUndoSnapshot(null);
 
@@ -601,6 +622,10 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
     if (undoTimerRef.current !== null) {
       clearTimeout(undoTimerRef.current);
       undoTimerRef.current = null;
+    }
+    if (undoIntervalRef.current !== null) {
+      clearInterval(undoIntervalRef.current);
+      undoIntervalRef.current = null;
     }
     setUndoSnapshot(null);
     if (snapshot.wasComplete) {
@@ -739,6 +764,36 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
 
       {!isComplete && !isQueueEmpty && ayah && (
         <footer className="border-t border-emerald-900/10 bg-[#FDFCF8]/98 p-4 backdrop-blur-sm dark:border-emerald-100/10 dark:bg-emerald-950/98 sm:p-5">
+          {undoSnapshot && !isSaving && (
+            <div className="mb-3 overflow-hidden rounded-2xl border border-emerald-900/20 bg-white shadow-[0_4px_16px_-4px_rgba(6,78,59,0.25)] dark:border-emerald-100/20 dark:bg-emerald-950">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-800">
+                  <Undo2 className="h-4 w-4 text-emerald-800 dark:text-emerald-200" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-emerald-950 dark:text-emerald-50">
+                    {t("practice.undo", locale)}
+                  </p>
+                  <p className="text-xs text-emerald-900/50 dark:text-emerald-100/50">
+                    {t("practice.undoSubtitle", locale)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleUndo()}
+                  className="shrink-0 rounded-xl bg-emerald-900 px-4 py-2 text-xs font-bold text-white transition-all duration-150 hover:bg-emerald-800 active:scale-95 dark:bg-emerald-200 dark:text-emerald-950"
+                >
+                  {undoSecondsLeft}s
+                </button>
+              </div>
+              <div className="h-1 bg-emerald-900/8 dark:bg-emerald-100/10">
+                <div
+                  className="h-full bg-emerald-700 transition-[width] duration-1000 ease-linear dark:bg-emerald-400"
+                  style={{ width: `${(undoSecondsLeft / 5) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
             {ratingPreviews.map((btn) => (
               <div
@@ -765,17 +820,6 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
             ))}
           </div>
         </footer>
-      )}
-      {undoSnapshot && !isSaving && (
-        <div className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 sm:bottom-28">
-          <button
-            type="button"
-            onClick={() => void handleUndo()}
-            className="flex items-center gap-2 rounded-2xl bg-emerald-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:bg-emerald-800 active:scale-95 dark:bg-emerald-200 dark:text-emerald-950"
-          >
-            {t("practice.undo", locale)}
-          </button>
-        </div>
       )}
     </main>
   );
