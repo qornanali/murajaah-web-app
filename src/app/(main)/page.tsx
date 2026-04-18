@@ -523,11 +523,6 @@ export default function Home() {
     router.push(`/practice/surah/${selectedSurahNumber}`);
   };
 
-  const openSourceSheet = (tab: "surah" | "packages") => {
-    setSourceSheetTab(tab);
-    setIsSourceSheetOpen(true);
-  };
-
   const updatePackageStatus = async (packageId: string) => {
     if (!activeUserId) {
       return;
@@ -769,7 +764,7 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-6 animate-fade-in">
+    <main className="flex min-h-screen flex-col items-center p-6 animate-fade-in">
       <HeaderBar
         locale={locale}
         theme={theme}
