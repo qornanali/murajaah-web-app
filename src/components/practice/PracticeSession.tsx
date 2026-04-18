@@ -765,7 +765,11 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
       {!isComplete && !isQueueEmpty && ayah && (
         <footer className="border-t border-emerald-900/10 bg-[#FDFCF8]/98 p-4 backdrop-blur-sm dark:border-emerald-100/10 dark:bg-emerald-950/98 sm:p-5">
           {undoSnapshot && !isSaving && (
-            <div className="mb-3 overflow-hidden rounded-2xl border border-emerald-900/20 bg-white shadow-[0_4px_16px_-4px_rgba(6,78,59,0.25)] dark:border-emerald-100/20 dark:bg-emerald-950">
+            <button
+              type="button"
+              onClick={() => void handleUndo()}
+              className="mb-3 w-full overflow-hidden rounded-2xl border border-emerald-900/20 bg-white text-left shadow-[0_4px_16px_-4px_rgba(6,78,59,0.25)] transition-all duration-150 hover:bg-emerald-50 active:scale-[0.99] dark:border-emerald-100/20 dark:bg-emerald-950 dark:hover:bg-emerald-900"
+            >
               <div className="flex items-center gap-3 px-4 py-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-800">
                   <Undo2 className="h-4 w-4 text-emerald-800 dark:text-emerald-200" />
@@ -778,13 +782,9 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
                     {t("practice.undoSubtitle", locale)}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void handleUndo()}
-                  className="shrink-0 rounded-xl bg-emerald-900 px-4 py-2 text-xs font-bold text-white transition-all duration-150 hover:bg-emerald-800 active:scale-95 dark:bg-emerald-200 dark:text-emerald-950"
-                >
+                <span className="shrink-0 rounded-xl bg-emerald-900 px-4 py-2 text-xs font-bold text-white dark:bg-emerald-200 dark:text-emerald-950">
                   {undoSecondsLeft}s
-                </button>
+                </span>
               </div>
               <div className="h-1 bg-emerald-900/8 dark:bg-emerald-100/10">
                 <div
@@ -792,7 +792,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
                   style={{ width: `${(undoSecondsLeft / 5) * 100}%` }}
                 />
               </div>
-            </div>
+            </button>
           )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
             {ratingPreviews.map((btn) => (
