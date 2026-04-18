@@ -93,12 +93,25 @@ export async function fetchAyahByKey(
   const encodedKey = encodeURIComponent(verseKey);
   const endpoint = `${QURAN_PROXY_BASE}/verses/by_key/${encodedKey}?fields=text_uthmani&audio=${recitationId}`;
 
-  const response = await fetch(endpoint, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-    },
-  });
+
+  // Set a longer timeout (e.g., 20 seconds) for the fetch request
+  const controller = new AbortController();
+  const timeoutMs = typeof process !== "undefined" && process.env.NEXT_PUBLIC_QURAN_API_FETCH_TIMEOUT_MS
+    ? parseInt(process.env.NEXT_PUBLIC_QURAN_API_FETCH_TIMEOUT_MS, 10)
+    : 20000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await fetch(endpoint, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     throw new Error(`Quran API request failed with status ${response.status}`);
