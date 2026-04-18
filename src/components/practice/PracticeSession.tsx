@@ -962,6 +962,22 @@ function AyahDisplay({
   return (
     <div className="flex flex-1 flex-col items-center justify-between px-4 py-6 sm:px-6">
       <div className="flex w-full max-w-lg flex-1 flex-col items-center justify-center gap-6">
+        <div className="flex w-full justify-center">
+          <div className="inline-flex items-center gap-3 rounded-2xl border border-emerald-900/12 bg-white px-5 py-3 shadow-sm dark:border-emerald-100/12 dark:bg-emerald-950/60">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-800/70">
+              <BookOpen className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
+            </span>
+            <div>
+              <p className="text-base font-bold leading-tight text-emerald-950 dark:text-emerald-50">
+                {getSurahName(ayah.surahNumber)}
+              </p>
+              <p className="mt-0.5 text-xs leading-tight text-emerald-700/65 dark:text-emerald-300/65">
+                {t("quran.surah", locale)} {ayah.surahNumber} · {t("quran.ayah", locale)} {ayah.ayahNumber}
+              </p>
+            </div>
+          </div>
+        </div>
+
         {revealLevel === 0 && (
           <div className="flex w-full flex-col items-center gap-6">
             <div className="w-full rounded-[24px] border border-dashed border-emerald-900/20 bg-emerald-900/4 px-6 py-12 text-center dark:border-emerald-100/20 dark:bg-emerald-100/4">
