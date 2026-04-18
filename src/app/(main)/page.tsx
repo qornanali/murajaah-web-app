@@ -784,7 +784,7 @@ export default function Home() {
         dueCount={dueQueue.length}
         currentStreak={currentStreak}
         isProfileLoading={!isInitialized || isQfSessionLoading || isDisplayNameLoading}
-        isStreakLoading={isProgressLoading}
+        isStreakLoading={!isInitialized || isQfSessionLoading || isProgressLoading}
         onSetLocale={setLocale}
         onSetTheme={setTheme}
         onSignOut={handleSignOut}
