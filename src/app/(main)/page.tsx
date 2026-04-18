@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import MethodologyModal from "@/components/ui/MethodologyModal";
 import OnboardingModal from "@/components/ui/OnboardingModal";
 import { ActiveTracksSection } from "@/components/home/ActiveTracksSection";
 import { DueReviewCard } from "@/components/home/DueReviewCard";
@@ -14,7 +13,6 @@ import { getGuestUserId } from "@/lib/guest";
 import { t } from "@/lib/i18n";
 import { calculateStreakFromIsoDates } from "@/lib/streak";
 import {
-  checkUserApiConnectivity,
   fetchLinkedUserProfile,
 } from "@/lib/qf/userBrowser";
 import {
@@ -116,7 +114,6 @@ export default function Home() {
     onConfirm: () => void;
   } | null>(null);
   const [guestUserId, setGuestUserId] = useState<string | null>(null);
-  const [isMethodologyModalOpen, setIsMethodologyModalOpen] = useState(false);
   const [isSourceSheetOpen, setIsSourceSheetOpen] = useState(false);
   const [sourceSheetTab, setSourceSheetTab] = useState<"surah" | "packages">(
     "surah",
@@ -131,10 +128,11 @@ export default function Home() {
     appUserId: null,
   });
   const [qfDisplayName, setQfDisplayName] = useState<string | null>(null);
-  const [isUserApiConnected, setIsUserApiConnected] = useState<boolean | null>(
-    null,
-  );
   const [currentStreak, setCurrentStreak] = useState(0);
+  const [isQfSessionLoading, setIsQfSessionLoading] = useState(true);
+  const [isProgressLoading, setIsProgressLoading] = useState(true);
+  const [isSurahTracksLoading, setIsSurahTracksLoading] = useState(true);
+  const [isEnrollmentsLoading, setIsEnrollmentsLoading] = useState(true);
 
   const authenticatedUserId = user?.id;
   const persistedUserId = authenticatedUserId ?? qfSession.appUserId;
@@ -281,8 +279,12 @@ export default function Home() {
 
   useEffect(() => {
     const loadQfSession = async () => {
-      const status = await fetchQfSessionStatus();
-      setQfSession(status);
+      try {
+        const status = await fetchQfSessionStatus();
+        setQfSession(status);
+      } finally {
+        setIsQfSessionLoading(false);
+      }
     };
 
     void loadQfSession();
@@ -305,37 +307,42 @@ export default function Home() {
 
   useEffect(() => {
     const loadSurahTracks = async () => {
-      if (!activeUserId) {
-        return;
-      }
-
-      if (isGuestMode && guestUserId) {
-        const key = `${GUEST_SURAH_TRACKS_PREFIX}.${guestUserId}`;
-        const raw = window.localStorage.getItem(key);
-
-        if (raw) {
-          try {
-            const parsed = JSON.parse(raw) as number[];
-            if (Array.isArray(parsed)) {
-              setActiveSurahTrackNumbers(parsed);
-            }
-          } catch {
-            setActiveSurahTrackNumbers([]);
-          }
+      setIsSurahTracksLoading(true);
+      try {
+        if (!activeUserId) {
+          return;
         }
 
-        return;
-      }
+        if (isGuestMode && guestUserId) {
+          const key = `${GUEST_SURAH_TRACKS_PREFIX}.${guestUserId}`;
+          const raw = window.localStorage.getItem(key);
 
-      if (!persistedUserId) {
-        return;
-      }
+          if (raw) {
+            try {
+              const parsed = JSON.parse(raw) as number[];
+              if (Array.isArray(parsed)) {
+                setActiveSurahTrackNumbers(parsed);
+              }
+            } catch {
+              setActiveSurahTrackNumbers([]);
+            }
+          }
 
-      try {
-        const tracks = await fetchUserSurahTracks(persistedUserId);
-        setActiveSurahTrackNumbers(tracks);
-      } catch {
-        setActiveSurahTrackNumbers([]);
+          return;
+        }
+
+        if (!persistedUserId) {
+          return;
+        }
+
+        try {
+          const tracks = await fetchUserSurahTracks(persistedUserId);
+          setActiveSurahTrackNumbers(tracks);
+        } catch {
+          setActiveSurahTrackNumbers([]);
+        }
+      } finally {
+        setIsSurahTracksLoading(false);
       }
     };
 
@@ -351,67 +358,58 @@ export default function Home() {
 
   useEffect(() => {
     const loadEnrollments = async () => {
-      if (!persistedUserId && !guestUserId) {
-        return;
-      }
-
-      if (!persistedUserId && guestUserId) {
-        const statusStorageKey = `${GUEST_PACKAGE_STATUS_PREFIX}.${guestUserId}`;
-        const rawStatus = window.localStorage.getItem(statusStorageKey);
-
-        if (!rawStatus) {
-          setPackageStatusById({});
-        } else {
-          try {
-            const parsed = JSON.parse(rawStatus) as Record<
-              string,
-              PackageEnrollmentStatus
-            >;
-            setPackageStatusById(parsed);
-          } catch {
-            setPackageStatusById({});
-          }
+      setIsEnrollmentsLoading(true);
+      try {
+        if (!persistedUserId && !guestUserId) {
+          return;
         }
 
-        return;
-      }
-      if (!persistedUserId) {
-        return;
-      }
+        if (!persistedUserId && guestUserId) {
+          const statusStorageKey = `${GUEST_PACKAGE_STATUS_PREFIX}.${guestUserId}`;
+          const rawStatus = window.localStorage.getItem(statusStorageKey);
 
-      try {
-        const enrollmentMap =
-          await fetchUserPackageEnrollments(persistedUserId);
-        setPackageStatusById(
-          Object.entries(enrollmentMap).reduce<
-            Record<string, PackageEnrollmentStatus>
-          >((acc, [packageId, enrollment]) => {
-            acc[packageId] = enrollment.status;
-            return acc;
-          }, {}),
-        );
-      } catch (loadError) {
-        const message = toUserError("PKG-ENROLL-001", loadError);
-        setPackagesError(message);
+          if (!rawStatus) {
+            setPackageStatusById({});
+          } else {
+            try {
+              const parsed = JSON.parse(rawStatus) as Record<
+                string,
+                PackageEnrollmentStatus
+              >;
+              setPackageStatusById(parsed);
+            } catch {
+              setPackageStatusById({});
+            }
+          }
+
+          return;
+        }
+        if (!persistedUserId) {
+          return;
+        }
+
+        try {
+          const enrollmentMap =
+            await fetchUserPackageEnrollments(persistedUserId);
+          setPackageStatusById(
+            Object.entries(enrollmentMap).reduce<
+              Record<string, PackageEnrollmentStatus>
+            >((acc, [packageId, enrollment]) => {
+              acc[packageId] = enrollment.status;
+              return acc;
+            }, {}),
+          );
+        } catch (loadError) {
+          const message = toUserError("PKG-ENROLL-001", loadError);
+          setPackagesError(message);
+        }
+      } finally {
+        setIsEnrollmentsLoading(false);
       }
     };
 
     void loadEnrollments();
   }, [persistedUserId, guestUserId]);
-
-  useEffect(() => {
-    const loadUserApiStatus = async () => {
-      if (!persistedUserId && !isQfLinked) {
-        setIsUserApiConnected(null);
-        return;
-      }
-
-      const connected = await checkUserApiConnectivity();
-      setIsUserApiConnected(connected);
-    };
-
-    void loadUserApiStatus();
-  }, [persistedUserId, isQfLinked]);
 
   useEffect(() => {
     const loadLinkedProfile = async () => {
@@ -457,26 +455,31 @@ export default function Home() {
       if (!activeUserId) {
         setReviewedVerseKeys(new Set());
         setCurrentStreak(0);
+        setIsProgressLoading(false);
         return;
       }
 
-      const allRows = await murajaahDB.ayahProgress
-        .toCollection()
-        .filter((row) => row.userId === activeUserId)
-        .toArray();
+      try {
+        const allRows = await murajaahDB.ayahProgress
+          .toCollection()
+          .filter((row) => row.userId === activeUserId)
+          .toArray();
 
-      const reviewed = new Set<string>();
-      const updatedAtDates: string[] = [];
+        const reviewed = new Set<string>();
+        const updatedAtDates: string[] = [];
 
-      allRows.forEach((row) => {
-        reviewed.add(toVerseKey(row.surahNumber, row.ayahNumber));
-        updatedAtDates.push(row.updatedAt);
-      });
+        allRows.forEach((row) => {
+          reviewed.add(toVerseKey(row.surahNumber, row.ayahNumber));
+          updatedAtDates.push(row.updatedAt);
+        });
 
-      const streak = calculateStreakFromIsoDates(updatedAtDates);
+        const streak = calculateStreakFromIsoDates(updatedAtDates);
 
-      setReviewedVerseKeys(reviewed);
-      setCurrentStreak(streak.current);
+        setReviewedVerseKeys(reviewed);
+        setCurrentStreak(streak.current);
+      } finally {
+        setIsProgressLoading(false);
+      }
     };
 
     void loadProgressState();
@@ -706,7 +709,6 @@ export default function Home() {
     });
     setQfSession({ linked: false, qfUserId: null, appUserId: null });
     setQfDisplayName(null);
-    setIsUserApiConnected(null);
 
     router.push("/");
   };
@@ -774,12 +776,12 @@ export default function Home() {
         }
         dueCount={dueQueue.length}
         currentStreak={currentStreak}
+        isProfileLoading={!isInitialized || isQfSessionLoading}
+        isStreakLoading={isProgressLoading}
         onSetLocale={setLocale}
         onSetTheme={setTheme}
-        onOpenMethodologyModal={() => setIsMethodologyModalOpen(true)}
         onSignOut={handleSignOut}
         isQfLinked={qfSession?.linked ?? false}
-        isUserApiConnected={isUserApiConnected}
       />
 
       <div className="w-full max-w-4xl space-y-5">
@@ -795,6 +797,7 @@ export default function Home() {
           <ActiveTracksSection
             locale={locale}
             tracks={activeTracks}
+            isLoading={isSurahTracksLoading || isEnrollmentsLoading}
             onAddTracks={() => router.push("/library")}
             onPlayTrack={handlePlayTrack}
             onResetTrack={handleResetTrack}
@@ -816,12 +819,6 @@ export default function Home() {
           setIsOnboardingModalOpen(false);
           dismissOnboardingModal();
         }}
-      />
-
-      <MethodologyModal
-        isOpen={isMethodologyModalOpen}
-        locale={locale}
-        onClose={() => setIsMethodologyModalOpen(false)}
       />
 
       <ConfirmDialog

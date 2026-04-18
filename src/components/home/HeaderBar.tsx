@@ -11,10 +11,10 @@ interface HeaderBarProps {
   userEmail: string | undefined;
   dueCount?: number;
   currentStreak?: number;
-  isUserApiConnected?: boolean | null;
+  isProfileLoading?: boolean;
+  isStreakLoading?: boolean;
   onSetLocale: (locale: AppLocale) => void;
   onSetTheme: (theme: "light" | "dark") => void;
-  onOpenMethodologyModal: () => void;
   onSignOut: () => Promise<void>;
   isQfLinked?: boolean;
 }
@@ -26,10 +26,10 @@ export function HeaderBar({
   userEmail,
   dueCount,
   currentStreak,
-  isUserApiConnected,
+  isProfileLoading,
+  isStreakLoading,
   onSetLocale,
   onSetTheme,
-  onOpenMethodologyModal,
   onSignOut,
   isQfLinked,
 }: HeaderBarProps) {
@@ -80,24 +80,30 @@ export function HeaderBar({
             )}
             </div>
           </div>
-          {currentStreak !== undefined && currentStreak > 0 && (
+          {isStreakLoading ? (
+            <span className="inline-block h-4 w-12 animate-pulse rounded-full bg-orange-100 sm:hidden dark:bg-orange-900/30" />
+          ) : currentStreak !== undefined && currentStreak > 0 ? (
             <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700 sm:hidden dark:bg-orange-900/30 dark:text-orange-300">
               🔥 {currentStreak}
             </span>
-          )}
+          ) : null}
           <div className="hidden min-w-0 text-sm text-emerald-900/70 sm:block dark:text-emerald-200/80">
             <div className="flex items-center gap-2">
               <p className="text-base font-semibold text-emerald-950 dark:text-emerald-100">
                 Murajaah
               </p>
-              {currentStreak !== undefined && currentStreak > 0 && (
+              {isStreakLoading ? (
+                <span className="inline-block h-4 w-12 animate-pulse rounded-full bg-orange-100 dark:bg-orange-900/30" />
+              ) : currentStreak !== undefined && currentStreak > 0 ? (
                 <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
                   🔥 {currentStreak}
                 </span>
-              )}
+              ) : null}
             </div>
             <p className="hidden sm:block">
-              {isGuestMode ? (
+              {isProfileLoading ? (
+                <span className="inline-block h-3.5 w-28 animate-pulse rounded bg-emerald-900/10 dark:bg-emerald-100/10" />
+              ) : isGuestMode ? (
                 <>
                   {t("page.guestMode", locale)}{" "}
                   <span className="font-medium text-emerald-950 dark:text-emerald-100">
@@ -202,27 +208,6 @@ export function HeaderBar({
               <Bookmark className="h-4 w-4" />
             </button>
           )}
-          <button
-            type="button"
-            onClick={onOpenMethodologyModal}
-            aria-label={t("page.learnAboutMethodology", locale)}
-            title={t("page.learnAboutMethodology", locale)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-900/15 bg-emerald-900/5 text-emerald-900 transition-all duration-200 hover:bg-emerald-900/10 active:scale-95 dark:border-emerald-100/15 dark:bg-emerald-100/5 dark:text-emerald-100 dark:hover:bg-emerald-100/10"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-            </svg>
-          </button>
           {isGuestMode ? (
             <button
               type="button"

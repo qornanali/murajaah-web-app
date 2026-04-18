@@ -18,6 +18,7 @@ export interface ActiveTrackItem {
 interface ActiveTracksSectionProps {
   locale: AppLocale;
   tracks: ActiveTrackItem[];
+  isLoading?: boolean;
   onAddTracks: () => void;
   onPlayTrack: (track: ActiveTrackItem) => void;
   onResetTrack: (track: ActiveTrackItem) => void;
@@ -26,6 +27,7 @@ interface ActiveTracksSectionProps {
 export function ActiveTracksSection({
   locale,
   tracks,
+  isLoading,
   onAddTracks,
   onPlayTrack,
   onResetTrack,
@@ -45,7 +47,31 @@ export function ActiveTracksSection({
         </button>
       </div>
 
-      {tracks.length === 0 ? (
+      {isLoading ? (
+        <div className="space-y-2.5">
+          {[0, 1].map((i) => (
+            <div
+              key={i}
+              className="animate-pulse rounded-[22px] border border-emerald-900/15 bg-white/70 px-3 py-3 dark:border-emerald-200/15 dark:bg-emerald-950/55"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-11 w-11 shrink-0 rounded-2xl bg-emerald-900/10 dark:bg-emerald-100/10" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3.5 w-2/5 rounded bg-emerald-900/10 dark:bg-emerald-100/10" />
+                  <div className="h-3 w-1/3 rounded bg-emerald-900/10 dark:bg-emerald-100/10" />
+                </div>
+                <div className="flex gap-1.5">
+                  <div className="h-8 w-8 rounded-xl bg-emerald-900/10 dark:bg-emerald-100/10" />
+                  <div className="h-8 w-8 rounded-xl bg-emerald-900/10 dark:bg-emerald-100/10" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="h-2 w-full rounded-full bg-emerald-900/10 dark:bg-emerald-100/10" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : tracks.length === 0 ? (
         <div className="rounded-[22px] border border-dashed border-emerald-900/20 bg-white/60 px-4 py-6 text-center text-sm text-emerald-900/75 dark:border-emerald-100/20 dark:bg-emerald-950/40 dark:text-emerald-100/80">
           {t("page.noActiveTracks", locale)}
         </div>

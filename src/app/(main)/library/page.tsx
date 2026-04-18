@@ -311,11 +311,6 @@ export default function LibraryPage() {
     return t("page.statusNotStarted", locale);
   };
 
-  const activeSurahCount = activeSurahTrackNumbers.length;
-  const activePackageCount = Object.values(packageStatusById).filter(
-    (s) => s === "active",
-  ).length;
-
   // Determine dark/light for data attribute
   useEffect(() => {
     const html = document.documentElement;

@@ -287,11 +287,11 @@ export default function ProfilePage() {
                   </>
                 ) : (
                   <>
-                    <p className="truncate font-bold text-white">
-                      {maskEmail(displayName)}
-                    </p>
                     <p className="mt-0.5 text-xs text-emerald-200/70">
                       {t("auth.loggedInAs", locale)}
+                    </p>
+                    <p className="truncate font-bold text-white">
+                      {maskEmail(displayName)}
                     </p>
                   </>
                 )}
