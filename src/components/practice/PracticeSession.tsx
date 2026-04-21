@@ -68,30 +68,35 @@ const AUTO_REVEAL_RATINGS: ReadonlySet<SM2Rating> = new Set([1, 2]);
 
 const ratingButtons: Array<{
   labelKey: string;
+  hintKey: string;
   value: SM2Rating;
   colorClasses: string;
   bgLight: string;
 }> = [
   {
     labelKey: "rating.again",
+    hintKey: "rating.againHint",
     value: 1,
     colorClasses: "bg-rose-700 hover:bg-rose-800 active:bg-rose-900",
     bgLight: "bg-rose-50 dark:bg-rose-950/30",
   },
   {
     labelKey: "rating.hard",
+    hintKey: "rating.hardHint",
     value: 2,
     colorClasses: "bg-amber-700 hover:bg-amber-800 active:bg-amber-900",
     bgLight: "bg-amber-50 dark:bg-amber-950/30",
   },
   {
     labelKey: "rating.good",
+    hintKey: "rating.goodHint",
     value: 3,
     colorClasses: "bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900",
     bgLight: "bg-emerald-50 dark:bg-emerald-950/30",
   },
   {
     labelKey: "rating.easy",
+    hintKey: "rating.easyHint",
     value: 4,
     colorClasses: "bg-teal-700 hover:bg-teal-800 active:bg-teal-900",
     bgLight: "bg-teal-50 dark:bg-teal-950/30",
@@ -265,12 +270,10 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
     () =>
       locale === "id"
         ? {
-            next: "Berikutnya",
             tomorrow: "besok",
             inDays: (days: number) => `${days} hari lagi`,
           }
         : {
-            next: "Next",
             tomorrow: "tomorrow",
             inDays: (days: number) => `in ${days} days`,
           },
@@ -891,6 +894,9 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
               </div>
             </button>
           )}
+          <p className="mb-3 text-center text-xs text-emerald-900/65 dark:text-emerald-100/65">
+            {t("practice.ratingHelper", locale)}
+          </p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
             {ratingPreviews.map((btn) => (
               <div
@@ -909,8 +915,13 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
                 >
                   {t(btn.labelKey, locale)}
                 </button>
+                <p className="mt-1 px-0.5 text-[10px] leading-4 text-emerald-900/70 dark:text-emerald-100/70">
+                  {t(btn.hintKey, locale)}
+                </p>
                 <p className="mt-1.5 px-0.5 text-[10px] leading-4 text-emerald-900/70 dark:text-emerald-100/70">
-                  <span className="font-semibold">{previewCopy.next}:</span>{" "}
+                  <span className="font-semibold">
+                    {t("practice.nextReviewLabel", locale)}:
+                  </span>{" "}
                   {btn.nextReviewText}
                 </p>
               </div>
@@ -972,7 +983,8 @@ function AyahDisplay({
                 {getSurahName(ayah.surahNumber)}
               </p>
               <p className="mt-0.5 text-xs leading-tight text-emerald-700/65 dark:text-emerald-300/65">
-                {t("quran.surah", locale)} {ayah.surahNumber} · {t("quran.ayah", locale)} {ayah.ayahNumber}
+                {t("quran.surah", locale)} {ayah.surahNumber} ·{" "}
+                {t("quran.ayah", locale)} {ayah.ayahNumber}
               </p>
             </div>
           </div>
