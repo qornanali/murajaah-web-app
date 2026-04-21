@@ -63,12 +63,12 @@ export default function MethodologyModal({
   ];
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-md transition-opacity duration-300"
       onClick={onClose}
       role="presentation"
     >
-      <div 
+      <div
         className="max-h-[95vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-emerald-200/30 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 shadow-2xl dark:border-emerald-700/40 dark:from-emerald-950 dark:via-emerald-900/40 dark:to-emerald-950/60 sm:rounded-3xl lg:max-w-2xl"
         onClick={(event) => event.stopPropagation()}
       >
@@ -166,6 +166,57 @@ export default function MethodologyModal({
                   />
                 </svg>
               </a>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-emerald-200/40 bg-white/80 p-3 dark:border-emerald-700/40 dark:bg-emerald-800/20 sm:p-4">
+            <p className="mb-3 text-xs font-semibold text-emerald-900 dark:text-emerald-100 sm:text-sm">
+              {t("page.ratingLegendTitle", locale)}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(
+                [
+                  {
+                    label: t("rating.again", locale),
+                    hint: t("rating.againHint", locale),
+                    guide: t("rating.againGuide", locale),
+                    color: "text-rose-700 dark:text-rose-400",
+                  },
+                  {
+                    label: t("rating.hard", locale),
+                    hint: t("rating.hardHint", locale),
+                    guide: t("rating.hardGuide", locale),
+                    color: "text-amber-700 dark:text-amber-400",
+                  },
+                  {
+                    label: t("rating.good", locale),
+                    hint: t("rating.goodHint", locale),
+                    guide: t("rating.goodGuide", locale),
+                    color: "text-emerald-700 dark:text-emerald-400",
+                  },
+                  {
+                    label: t("rating.easy", locale),
+                    hint: t("rating.easyHint", locale),
+                    guide: t("rating.easyGuide", locale),
+                    color: "text-teal-700 dark:text-teal-400",
+                  },
+                ] as const
+              ).map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-lg border border-emerald-900/8 bg-emerald-900/3 px-3 py-2 dark:border-emerald-100/8 dark:bg-emerald-100/3"
+                >
+                  <p className={`text-xs font-bold ${item.color}`}>
+                    {item.label}{" "}
+                    <span className="font-normal text-emerald-900/70 dark:text-emerald-100/70">
+                      — {item.hint}
+                    </span>
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-4 text-emerald-900/60 dark:text-emerald-100/60">
+                    {item.guide}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
 

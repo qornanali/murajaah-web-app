@@ -69,6 +69,7 @@ const AUTO_REVEAL_RATINGS: ReadonlySet<SM2Rating> = new Set([1, 2]);
 const ratingButtons: Array<{
   labelKey: string;
   hintKey: string;
+  guideKey: string;
   value: SM2Rating;
   colorClasses: string;
   bgLight: string;
@@ -76,6 +77,7 @@ const ratingButtons: Array<{
   {
     labelKey: "rating.again",
     hintKey: "rating.againHint",
+    guideKey: "rating.againGuide",
     value: 1,
     colorClasses: "bg-rose-700 hover:bg-rose-800 active:bg-rose-900",
     bgLight: "bg-rose-50 dark:bg-rose-950/30",
@@ -83,6 +85,7 @@ const ratingButtons: Array<{
   {
     labelKey: "rating.hard",
     hintKey: "rating.hardHint",
+    guideKey: "rating.hardGuide",
     value: 2,
     colorClasses: "bg-amber-700 hover:bg-amber-800 active:bg-amber-900",
     bgLight: "bg-amber-50 dark:bg-amber-950/30",
@@ -90,6 +93,7 @@ const ratingButtons: Array<{
   {
     labelKey: "rating.good",
     hintKey: "rating.goodHint",
+    guideKey: "rating.goodGuide",
     value: 3,
     colorClasses: "bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900",
     bgLight: "bg-emerald-50 dark:bg-emerald-950/30",
@@ -97,6 +101,7 @@ const ratingButtons: Array<{
   {
     labelKey: "rating.easy",
     hintKey: "rating.easyHint",
+    guideKey: "rating.easyGuide",
     value: 4,
     colorClasses: "bg-teal-700 hover:bg-teal-800 active:bg-teal-900",
     bgLight: "bg-teal-50 dark:bg-teal-950/30",
@@ -219,6 +224,7 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
   const [isBookmarkSaving, setIsBookmarkSaving] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [bookmarkError, setBookmarkError] = useState<string | null>(null);
+  const [showRatingGuide, setShowRatingGuide] = useState(false);
   const [ratingCounts, setRatingCounts] = useState<Record<SM2Rating, number>>({
     1: 0,
     2: 0,
@@ -897,6 +903,45 @@ export default function PracticeSession({ kind, id }: PracticeSessionProps) {
           <p className="mb-3 text-center text-xs text-emerald-900/65 dark:text-emerald-100/65">
             {t("practice.ratingHelper", locale)}
           </p>
+          <div className="mb-3 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setShowRatingGuide((prev) => !prev)}
+              aria-expanded={showRatingGuide}
+              className="inline-flex items-center gap-1.5 rounded-full border border-emerald-900/12 bg-emerald-900/5 px-3 py-1 text-xs font-medium text-emerald-900 transition-colors hover:bg-emerald-900/10 dark:border-emerald-100/12 dark:bg-emerald-100/5 dark:text-emerald-100 dark:hover:bg-emerald-100/10"
+            >
+              {t("practice.ratingGuideToggle", locale)}
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform ${showRatingGuide ? "rotate-180" : ""}`}
+              />
+            </button>
+          </div>
+          {showRatingGuide && (
+            <div className="mb-3 rounded-2xl border border-emerald-900/10 bg-emerald-900/5 p-3 dark:border-emerald-100/10 dark:bg-emerald-100/5">
+              <p className="mb-2 text-xs font-semibold text-emerald-900 dark:text-emerald-100">
+                {t("practice.ratingGuideTitle", locale)}
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {ratingPreviews.map((btn) => (
+                  <div
+                    key={`guide-${btn.value}`}
+                    className="rounded-xl border border-emerald-900/8 bg-white/70 px-3 py-2 dark:border-emerald-100/8 dark:bg-emerald-950/40"
+                  >
+                    <p className="text-xs font-semibold text-emerald-950 dark:text-emerald-50">
+                      {t(btn.labelKey, locale)} - {t(btn.hintKey, locale)}
+                    </p>
+                    <p className="mt-1 text-[11px] leading-4 text-emerald-900/70 dark:text-emerald-100/70">
+                      {t(btn.guideKey, locale)}
+                    </p>
+                    <p className="mt-1 text-[11px] font-medium text-emerald-900/70 dark:text-emerald-100/70">
+                      {t("practice.nextReviewLabel", locale)}:{" "}
+                      {btn.nextReviewText}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
             {ratingPreviews.map((btn) => (
               <div
